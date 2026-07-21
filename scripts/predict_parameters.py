@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 ================================================================================
 ADR1D-ML: Verified Transport-Parameter Inference
@@ -38,7 +37,7 @@ This work received institutional and financial support from:
 
 Revision History
 ----------------
-- Initial release: July 2026.
+- Initial release: December 2024.
 - Last update: July 2026.
 ================================================================================
 """

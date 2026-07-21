@@ -10,7 +10,7 @@
 
 ### :link: Quick Links
 
-[![Quick Start](https://img.shields.io/badge/Run-Quick%20Start-2E8B57)](#rocket-quick-start) [![Inputs](https://img.shields.io/badge/Data-Input%20Contract-1F6F8B)](#inbox_tray-input-contract) [![Model](https://img.shields.io/badge/ML-Model%20Design-6F42C1)](#gear-model-components) [![Results](https://img.shields.io/badge/Test-Results-B07AA1)](#bar_chart-locked-test-results) [![Integration](https://img.shields.io/badge/PDE-Integration-CA6702)](#arrows_counterclockwise-numerical-integration) [![Citation](https://img.shields.io/badge/Use-Citation-7B5B3A)](#memo-how-to-cite) [![Team](https://img.shields.io/badge/People-Research%20Team-3B6EA8)](#scientist-research-team) [![Contact](https://img.shields.io/badge/Support-Contact-181717)](#email-contact--support)
+[![Quick Start](https://img.shields.io/badge/Run-Quick%20Start-2E8B57)](#rocket-quick-start) [![Inputs](https://img.shields.io/badge/Data-Input%20Contract-1F6F8B)](#inbox_tray-input-contract) [![Model](https://img.shields.io/badge/ML-Model%20Design-6F42C1)](#gear-model-components) [![Results](https://img.shields.io/badge/Test-Results-B07AA1)](#bar_chart-locked-test-results) [![Simulations](https://img.shields.io/badge/PDE-Simulations-008C95)](#ocean-simulation-results) [![Integration](https://img.shields.io/badge/PDE-Integration-CA6702)](#arrows_counterclockwise-numerical-integration) [![Citation](https://img.shields.io/badge/Use-Citation-7B5B3A)](#memo-how-to-cite) [![Team](https://img.shields.io/badge/People-Research%20Team-3B6EA8)](#scientist-research-team) [![Contact](https://img.shields.io/badge/Support-Contact-181717)](#email-contact--support)
 
 </div>
 
@@ -28,6 +28,7 @@
 - [Model Components](#gear-model-components)
 - [Training Protocol](#twisted_rightwards_arrows-training-protocol)
 - [Locked Test Results](#bar_chart-locked-test-results)
+- [Simulation Results](#ocean-simulation-results)
 - [Numerical Integration](#arrows_counterclockwise-numerical-integration)
 - [Validation and Reproducibility](#white_check_mark-validation--reproducibility)
 - [Data Provenance](#mag-data-provenance)
@@ -114,7 +115,8 @@ of machine-learning architecture.
 |   |-- train_and_evaluate_final_models.py
 |   |-- validate_final_models.py
 |   |-- validate_release.py
-|   `-- plot_final_test_results.py
+|   |-- plot_final_test_results.py
+|   `-- plot_simulation_results.py
 |-- results/
 |   |-- final_model_protocol.json
 |   |-- final_test_metrics.json
@@ -122,9 +124,12 @@ of machine-learning architecture.
 |   |-- final_model_validation.json
 |   |-- baseline_validation_summary.json
 |   |-- decay_detectability_validation_summary.json
-|   `-- example_predictions.csv
+|   |-- example_predictions.csv
+|   `-- simulation_reconstruction_metrics.csv
 `-- docs/
     |-- final_test_diagnostics.png
+    |-- simulation_examples.png
+    |-- simulation_reconstructions.png
     `-- team/
 ```
 
@@ -235,10 +240,11 @@ absent from the example input files.
 python scripts/train_and_evaluate_final_models.py
 python scripts/validate_final_models.py
 python scripts/plot_final_test_results.py
+python scripts/plot_simulation_results.py
 ```
 
 Retraining uses the protocol and tables distributed in this release. It should
-reproduce the published bundle, metrics, predictions, and figure when the
+reproduce the published bundle, metrics, predictions, and figures when the
 pinned environment is used. The test set is public after release and must not
 be used for additional tuning while claiming the original locked evaluation.
 
@@ -471,6 +477,59 @@ treated as a high-uncertainty estimate rather than a precise measurement.
 
 ---
 
+## :ocean: Simulation Results
+
+Parameter errors are also examined in simulation space. The public plotting
+script reconstructs analytical ADR1D concentration fields from the compact
+scenario tables, so the full 749,700-row benchmark field does not need to be
+duplicated in this repository.
+
+### Benchmark dynamics and virtual sensors
+
+<div align="center">
+
+<img src="docs/simulation_examples.png" alt="ADR1D concentration fields and six-sensor breakthrough curves for zero, below-resolution, and resolvable decay scenarios" width="1000">
+
+<sub>Three illustrative validation scenarios spanning the modeled decay states. Lines are noise-free analytical responses, points are virtual observations, and crosses indicate values censored by the detection-limit rule.</sub>
+
+</div>
+
+These examples expose the simulated plume motion before reducing each sensor
+history to machine-learning features. They belong to the final development set
+and are presented for interpretation, not as independent performance evidence.
+
+### ML-driven locked-test reconstructions
+
+<div align="center">
+
+<img src="docs/simulation_reconstructions.png" alt="Reference fields, ML-driven fields, and absolute concentration errors for four correctly resolved locked-test scenarios" width="1000">
+
+<sub>Reference and ML-driven fields for all four resolvable test scenarios classified correctly. No case was selected according to visual quality.</sub>
+
+</div>
+
+| Scenario | Physical regime | Field RMSE | Maximum absolute error |
+|---|---|---:|---:|
+| ADR1D-0130 | Decay only | 0.040 $C_0$ | 0.426 $C_0$ |
+| ADR1D-0240 | Retardation and decay | 0.016 $C_0$ | 0.099 $C_0$ |
+| ADR1D-0244 | Retardation and decay | 0.031 $C_0$ | 0.142 $C_0$ |
+| ADR1D-0279 | Retardation and decay | 0.027 $C_0$ | 0.098 $C_0$ |
+
+The comparison uses a common grid of 201 spatial positions and 121 times. The
+complete values are stored in
+`results/simulation_reconstruction_metrics.csv`. Cases classified as
+unresolved are intentionally absent because the model contract does not assign
+them a single decay rate. These post-test visual diagnostics were not used to
+change features, thresholds, estimators, or hyperparameters.
+
+Reproduce both figures from the repository root with:
+
+```bash
+python scripts/plot_simulation_results.py
+```
+
+---
+
 ## :arrows_counterclockwise: Numerical Integration
 
 The effective predictions can be inserted directly into the normalized
@@ -530,10 +589,11 @@ The release validator additionally rebuilds all 86 features from the raw
 three-scenario example, loads the verified bundle through the public API, and
 reproduces all eight prediction columns.
 
-### Recreate the diagnostic figure
+### Recreate the diagnostic figures
 
 ```bash
 python scripts/plot_final_test_results.py
+python scripts/plot_simulation_results.py
 ```
 
 ### Reproduce the complete final fit

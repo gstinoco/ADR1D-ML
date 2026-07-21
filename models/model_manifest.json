@@ -10,5 +10,5 @@
   "protocol_file": "results/final_model_protocol.json",
   "protocol_sha256": "56555a235dd6610a5bd3d6376cbe1123490fc50d28b6a0a0c0e8a0c342fdc2d3",
   "test_rows": 45,
-  "training_script_sha256": "6f7c2571533559fbae2da72a7e38ca5d7342c4f2d9906f3b74690ffbbf12863f"
+  "training_script_sha256": "755aa71ae876a7f9ef595dc9e93c2b42b61303483b1a86a3221633d49f57826f"
 }
