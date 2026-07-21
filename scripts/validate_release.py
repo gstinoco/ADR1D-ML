@@ -1,37 +1,46 @@
 #!/usr/bin/env python3
-"""Validate the public ADR1D-ML feature-to-prediction workflow.
+"""
+================================================================================
+ADR1D-ML: Public Integration Validation
+================================================================================
 
-This module validates the complete public inference path from raw source and
-sensor CSV files to model-ready features and transport-parameter predictions.
-It complements the independent locked-test validator by exercising the API
-that external numerical workflows will call.
+This module validates the complete inference path from raw source and sensor
+CSV files to model-ready features and transport-parameter predictions. It
+complements the locked-test validator by exercising the public API used by
+external numerical workflows.
 
-Main operations
+Main Operations
 ---------------
 1. Rebuild the 86 predictors for three unlabeled example scenarios.
 2. Compare extracted features with the distributed reference table.
 3. Load the digest-verified model through the public API.
 4. Reproduce all eight public prediction columns.
 
-Authors and contributors
-------------------------
-Gerardo Tinoco-Guerrero, Francisco J. Domínguez-Mota,
-J. Alberto Guzmán-Torres, Gabriela Pedraza-Jiménez, Eli Chagolla-Inzunza,
-Jorge L. González-Figueroa, Christopher N. Magaña-Barocio, and
-Maria Goretti Fraga-Lopez.
+Authors
+-------
+Gerardo Tinoco-Guerrero
+Francisco J. Domínguez-Mota
+J. Alberto Guzmán-Torres
 
 Universidad Michoacana de San Nicolás de Hidalgo, Morelia, Mexico.
 Contact: gerardo.tinoco@umich.mx
 
-Funding and institutional support
----------------------------------
-SECIHTI, CIC-UMSNH, SIIIA MATH: Soluciones en Ingeniería, CIMNE, and
-Aula CIMNE Morelia.
+Funding & Institutional Support
+-------------------------------
+This work received institutional and financial support from:
+- Secretariat of Science, Humanities, Technology and Innovation (SECIHTI),
+  Mexico.
+- Coordination of Scientific Research, Universidad Michoacana de San Nicolás
+  de Hidalgo (CIC-UMSNH), Mexico.
+- SIIIA MATH: Soluciones en Ingeniería.
+- International Centre for Numerical Methods in Engineering (CIMNE).
+- Aula CIMNE Morelia.
 
-Revision history
+Revision History
 ----------------
 - Initial release: July 2026.
-- Last modification: July 2026.
+- Last update: July 2026.
+================================================================================
 """
 
 from __future__ import annotations
@@ -62,7 +71,8 @@ def _assert_frame_close(
     rtol: float = 1e-9,
     atol: float = 1e-12,
 ) -> None:
-    """Compare selected numeric columns in two aligned tables.
+    """
+    Compare selected numeric columns in two aligned tables.
 
     Parameters
     ----------
@@ -96,7 +106,8 @@ def _assert_frame_close(
 
 
 def main() -> None:
-    """Reproduce the public example from raw sensors through model predictions.
+    """
+    Reproduce the public example from raw sensors through model predictions.
 
     Returns
     -------

@@ -1,37 +1,47 @@
 #!/usr/bin/env python3
-"""Extract ADR1D sensor features for transport-parameter inference.
+"""
+================================================================================
+ADR1D-ML: Sensor Feature Extraction
+================================================================================
 
-This module converts ADR1D-format source metadata and concentration histories
-into the 86 predictors required by the public parameter-inference model. It
-validates the trained six-sensor geometry and temporal grid, summarizes each
-sensor history, and derives cross-sensor transport and attenuation descriptors.
+This module converts ADR1D source metadata and concentration histories into
+the 86 predictors required by the parameter-inference model. It validates the
+six-sensor geometry and temporal grid used during training, summarizes each
+sensor history, and derives transport and attenuation descriptors across the
+observation network.
 
-Main operations
+Main Operations
 ---------------
 1. Validate source and observation tables.
 2. Extract eleven descriptors from each of six sensor histories.
 3. Derive seventeen physics-motivated cross-sensor features.
 4. Export one model-ready row per scenario.
 
-Authors and contributors
-------------------------
-Gerardo Tinoco-Guerrero, Francisco J. Domínguez-Mota,
-J. Alberto Guzmán-Torres, Gabriela Pedraza-Jiménez, Eli Chagolla-Inzunza,
-Jorge L. González-Figueroa, Christopher N. Magaña-Barocio, and
-Maria Goretti Fraga-Lopez.
+Authors
+-------
+Gerardo Tinoco-Guerrero
+Francisco J. Domínguez-Mota
+J. Alberto Guzmán-Torres
 
 Universidad Michoacana de San Nicolás de Hidalgo, Morelia, Mexico.
 Contact: gerardo.tinoco@umich.mx
 
-Funding and institutional support
----------------------------------
-SECIHTI, CIC-UMSNH, SIIIA MATH: Soluciones en Ingeniería, CIMNE, and
-Aula CIMNE Morelia.
+Funding & Institutional Support
+-------------------------------
+This work received institutional and financial support from:
+- Secretariat of Science, Humanities, Technology and Innovation (SECIHTI),
+  Mexico.
+- Coordination of Scientific Research, Universidad Michoacana de San Nicolás
+  de Hidalgo (CIC-UMSNH), Mexico.
+- SIIIA MATH: Soluciones en Ingeniería.
+- International Centre for Numerical Methods in Engineering (CIMNE).
+- Aula CIMNE Morelia.
 
-Revision history
+Revision History
 ----------------
 - Initial release: July 2026.
-- Last modification: July 2026.
+- Last update: July 2026.
+================================================================================
 """
 
 from __future__ import annotations
@@ -74,7 +84,8 @@ OBSERVATION_COLUMNS = [
 
 
 def _parse_args() -> argparse.Namespace:
-    """Parse command-line paths for source, observation, and output tables.
+    """
+    Parse command-line paths for source, observation, and output tables.
 
     Returns
     -------
@@ -83,7 +94,12 @@ def _parse_args() -> argparse.Namespace:
         and `output_csv` attributes represented as paths.
 
     """
-    parser = argparse.ArgumentParser(description=__doc__)
+    parser = argparse.ArgumentParser(
+        description=(
+            "Extract the 86 ADR1D-ML predictors from source metadata and "
+            "six-sensor concentration histories."
+        )
+    )
     parser.add_argument("--sources-csv", required=True, type=Path)
     parser.add_argument("--observations-csv", required=True, type=Path)
     parser.add_argument("--output-csv", required=True, type=Path)
@@ -95,7 +111,8 @@ def _require_columns(
     columns: list[str],
     label: str,
 ) -> None:
-    """Verify that a table contains every required column.
+    """
+    Verify that a table contains every required column.
 
     Parameters
     ----------
@@ -118,7 +135,8 @@ def _require_columns(
 
 
 def _parse_boolean(values: pd.Series) -> np.ndarray:
-    """Convert accepted textual or numeric Boolean flags into a Boolean array.
+    """
+    Convert accepted textual or numeric Boolean flags into a Boolean array.
 
     Parameters
     ----------
@@ -146,7 +164,8 @@ def _parse_boolean(values: pd.Series) -> np.ndarray:
 
 
 def _trapezoidal_integral(values: np.ndarray, times: np.ndarray) -> float:
-    """Integrate a sampled signal with the composite trapezoidal rule.
+    """
+    Integrate a sampled signal with the composite trapezoidal rule.
 
     Parameters
     ----------
@@ -170,7 +189,8 @@ def _cumulative_mass_time(
     times: np.ndarray,
     fraction: float,
 ) -> float:
-    """Locate the time at which a fraction of integrated signal mass is reached.
+    """
+    Locate the time at which a fraction of integrated signal mass is reached.
 
     Parameters
     ----------
@@ -211,7 +231,8 @@ def _sensor_features(
     source_start: float,
     source_duration: float,
 ) -> dict[str, float]:
-    """Summarize one sensor concentration history with eleven descriptors.
+    """
+    Summarize one sensor concentration history with eleven descriptors.
 
     Parameters
     ----------
@@ -298,7 +319,8 @@ def _sensor_features(
 
 
 def _line_slope_and_r2(values: np.ndarray) -> tuple[float, float]:
-    """Fit a straight line against the six fixed sensor positions.
+    """
+    Fit a straight line against the six fixed sensor positions.
 
     Parameters
     ----------
@@ -326,7 +348,8 @@ def _line_slope_and_r2(values: np.ndarray) -> tuple[float, float]:
 
 
 def _positive_inverse(value: float) -> float:
-    """Return the inverse of a positive value.
+    """
+    Return the inverse of a positive value.
 
     Parameters
     ----------
@@ -343,7 +366,8 @@ def _positive_inverse(value: float) -> float:
 
 
 def _physics_features(row: dict[str, object]) -> dict[str, float]:
-    """Derive seventeen transport descriptors across the six sensors.
+    """
+    Derive seventeen transport descriptors across the six sensors.
 
     Parameters
     ----------
@@ -365,7 +389,20 @@ def _physics_features(row: dict[str, object]) -> dict[str, float]:
     labels = [sensor_id.lower() for sensor_id in SENSOR_POSITIONS_M]
 
     def values(suffix: str) -> np.ndarray:
-        """Collect one sensor descriptor in upstream spatial order."""
+        """
+        Collect one sensor descriptor in upstream spatial order.
+
+        Parameters
+        ----------
+        suffix : str
+            Feature suffix shared by the six sensor-specific columns.
+
+        Returns
+        -------
+        numpy.ndarray
+            Six descriptor values ordered from sensor `S01` through `S06`.
+
+        """
         return np.asarray(
             [row[f"feature_{label}_{suffix}"] for label in labels],
             dtype=float,
@@ -398,7 +435,21 @@ def _physics_features(row: dict[str, object]) -> dict[str, float]:
     )
 
     def decay_proxy(attenuation_slope: float) -> float:
-        """Estimate non-negative decay from a fitted attenuation slope."""
+        """
+        Estimate non-negative decay from a fitted attenuation slope.
+
+        Parameters
+        ----------
+        attenuation_slope : float
+            Fitted logarithmic attenuation slope in inverse meters.
+
+        Returns
+        -------
+        float
+            Non-negative decay proxy in inverse seconds, or `NaN` when the
+            centroid-based velocity proxy is unavailable.
+
+        """
         if not math.isfinite(velocity_centroid):
             return math.nan
         estimate = (
@@ -429,7 +480,8 @@ def _physics_features(row: dict[str, object]) -> dict[str, float]:
 
 
 def validate_inputs(sources: pd.DataFrame, observations: pd.DataFrame) -> None:
-    """Validate source metadata and raw sensor observations against the model domain.
+    """
+    Validate source metadata and raw sensor observations against the model domain.
 
     Parameters
     ----------
@@ -477,7 +529,8 @@ def build_feature_table(
     sources: pd.DataFrame,
     observations: pd.DataFrame,
 ) -> pd.DataFrame:
-    """Build one model-ready feature row per source scenario.
+    """
+    Build one model-ready feature row per source scenario.
 
     Parameters
     ----------
@@ -556,7 +609,8 @@ def build_feature_table(
 
 
 def main() -> None:
-    """Validate input CSV files, extract features, and write the output table.
+    """
+    Validate input CSV files, extract features, and write the output table.
 
     Returns
     -------

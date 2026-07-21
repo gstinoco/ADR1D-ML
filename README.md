@@ -34,7 +34,6 @@
 - [File Integrity](#lock-file-integrity)
 - [Limitations](#warning-limitations--responsible-use)
 - [How to Cite](#memo-how-to-cite)
-- [Contributing](#hammer_and_wrench-contributing)
 - [Research Team](#scientist-research-team)
 - [License and Rights](#page_facing_up-license--rights)
 - [Acknowledgments](#pray-acknowledgments)
@@ -95,7 +94,6 @@ of machine-learning architecture.
 ```text
 .
 |-- README.md
-|-- CONTRIBUTING.md
 |-- CITATION.cff
 |-- LICENSE
 |-- LICENSE-DATA
@@ -107,7 +105,6 @@ of machine-learning architecture.
 |   |-- example_sensor_observations.csv
 |   `-- example_features.csv
 |-- models/
-|   |-- README.md
 |   |-- adr1d_parameter_models.joblib
 |   `-- model_manifest.json
 |-- scripts/
@@ -119,7 +116,6 @@ of machine-learning architecture.
 |   |-- validate_release.py
 |   `-- plot_final_test_results.py
 |-- results/
-|   |-- README.md
 |   |-- final_model_protocol.json
 |   |-- final_test_metrics.json
 |   |-- final_test_predictions.csv
@@ -128,7 +124,6 @@ of machine-learning architecture.
 |   |-- decay_detectability_validation_summary.json
 |   `-- example_predictions.csv
 `-- docs/
-    |-- final_model_report.md
     |-- final_test_diagnostics.png
     `-- team/
 ```
@@ -625,9 +620,8 @@ should never load an untrusted Joblib or pickle artifact.
 
 Please cite the software release as:
 
-> Tinoco-Guerrero, G., Domínguez-Mota, F. J., Guzmán-Torres, J. A.,
-> Pedraza-Jiménez, G., Chagolla-Inzunza, E., González-Figueroa, J. L.,
-> Magaña-Barocio, C. N., and Fraga-Lopez, M. G. (2026). *ADR1D-ML:
+> Tinoco-Guerrero, G., Domínguez-Mota, F. J., and Guzmán-Torres, J. A. (2026).
+> *ADR1D-ML:
 > Identifiable Parameter Inference for One-Dimensional Reactive Transport*
 > (Version 1.0.0) [Computer software]. Universidad Michoacana de San Nicolás
 > de Hidalgo. https://github.com/gstinoco/ADR1D-ML
@@ -638,12 +632,7 @@ BibTeX:
 @software{TinocoGuerrero2026ADR1DML,
   author    = {Tinoco-Guerrero, Gerardo and
                Domínguez-Mota, Francisco J. and
-               Guzmán-Torres, J. Alberto and
-               Pedraza-Jiménez, Gabriela and
-               Chagolla-Inzunza, Eli and
-               González-Figueroa, Jorge L. and
-               Magaña-Barocio, Christopher N. and
-               Fraga-Lopez, Maria Goretti},
+               Guzmán-Torres, J. Alberto},
   title     = {{ADR1D-ML}: Identifiable Parameter Inference for
                One-Dimensional Reactive Transport},
   version   = {1.0.0},
@@ -673,19 +662,6 @@ release:
    [https://doi.org/10.1080/00401706.1979.10489755](https://doi.org/10.1080/00401706.1979.10489755)
 
 GitHub can also generate citation metadata directly from `CITATION.cff`.
-
----
-
-## :hammer_and_wrench: Contributing
-
-Contributions are welcome when they preserve the documented feature contract,
-locked evaluation protocol, and deterministic behavior of the release. The
-project's Python conventions, required validation commands, and rules for
-changes to scientific assumptions are defined in
-[`CONTRIBUTING.md`](CONTRIBUTING.md).
-
-Please open an issue before changing sensor geometry, target definitions,
-trained-model behavior, or the interpretation of unresolved decay.
 
 ---
 

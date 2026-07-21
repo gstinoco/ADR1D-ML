@@ -1,37 +1,46 @@
 #!/usr/bin/env python3
-"""Infer transport parameters with the verified ADR1D-ML model bundle.
+"""
+================================================================================
+ADR1D-ML: Verified Transport-Parameter Inference
+================================================================================
 
-This module verifies and loads the serialized ADR1D-ML bundle, checks the
+This module verifies and loads the serialized ADR1D-ML bundle, enforces its
 feature contract, and predicts identifiable transport parameters from an
-in-memory table or a CSV file. It provides both the public Python API and the
-command-line inference interface.
+in-memory table or CSV file. It provides the public Python API and the
+command-line inference interface used by external numerical workflows.
 
-Main operations
+Main Operations
 ---------------
 1. Verify the model SHA-256 digest before deserialization.
 2. Validate the required feature columns.
 3. Predict effective velocity, effective dispersion, and decay resolvability.
 4. Report conditional decay only when the classifier resolves it.
 
-Authors and contributors
-------------------------
-Gerardo Tinoco-Guerrero, Francisco J. Domínguez-Mota,
-J. Alberto Guzmán-Torres, Gabriela Pedraza-Jiménez, Eli Chagolla-Inzunza,
-Jorge L. González-Figueroa, Christopher N. Magaña-Barocio, and
-Maria Goretti Fraga-Lopez.
+Authors
+-------
+Gerardo Tinoco-Guerrero
+Francisco J. Domínguez-Mota
+J. Alberto Guzmán-Torres
 
 Universidad Michoacana de San Nicolás de Hidalgo, Morelia, Mexico.
 Contact: gerardo.tinoco@umich.mx
 
-Funding and institutional support
----------------------------------
-SECIHTI, CIC-UMSNH, SIIIA MATH: Soluciones en Ingeniería, CIMNE, and
-Aula CIMNE Morelia.
+Funding & Institutional Support
+-------------------------------
+This work received institutional and financial support from:
+- Secretariat of Science, Humanities, Technology and Innovation (SECIHTI),
+  Mexico.
+- Coordination of Scientific Research, Universidad Michoacana de San Nicolás
+  de Hidalgo (CIC-UMSNH), Mexico.
+- SIIIA MATH: Soluciones en Ingeniería.
+- International Centre for Numerical Methods in Engineering (CIMNE).
+- Aula CIMNE Morelia.
 
-Revision history
+Revision History
 ----------------
 - Initial release: July 2026.
-- Last modification: July 2026.
+- Last update: July 2026.
+================================================================================
 """
 
 from __future__ import annotations
@@ -57,7 +66,8 @@ DEFAULT_MANIFEST = ROOT / "models/model_manifest.json"
 
 @contextmanager
 def _guarded_linear_algebra() -> Iterable[None]:
-    """Suppress expected matrix warnings during model prediction.
+    """
+    Suppress expected matrix warnings during model prediction.
 
     Yields
     ------
@@ -77,7 +87,8 @@ def _guarded_linear_algebra() -> Iterable[None]:
 
 
 def _require_finite(values: np.ndarray, label: str) -> None:
-    """Require every numeric result to be finite.
+    """
+    Require every numeric result to be finite.
 
     Parameters
     ----------
@@ -97,7 +108,8 @@ def _require_finite(values: np.ndarray, label: str) -> None:
 
 
 def _sha256(path: Path) -> str:
-    """Compute the SHA-256 digest of a file without loading it entirely in memory.
+    """
+    Compute the SHA-256 digest of a file without loading it entirely in memory.
 
     Parameters
     ----------
@@ -118,7 +130,8 @@ def _sha256(path: Path) -> str:
 
 
 def _parse_args() -> argparse.Namespace:
-    """Parse command-line inference options.
+    """
+    Parse command-line inference options.
 
     Returns
     -------
@@ -126,7 +139,12 @@ def _parse_args() -> argparse.Namespace:
         Input, output, model, manifest, split, and optional row-limit values.
 
     """
-    parser = argparse.ArgumentParser(description=__doc__)
+    parser = argparse.ArgumentParser(
+        description=(
+            "Infer identifiable ADR1D transport parameters from a compatible "
+            "feature table."
+        )
+    )
     parser.add_argument("--input-csv", required=True, type=Path)
     parser.add_argument("--output-csv", required=True, type=Path)
     parser.add_argument("--model", type=Path, default=DEFAULT_MODEL)
@@ -144,7 +162,8 @@ def load_verified_bundle(
     model_path: Path = DEFAULT_MODEL,
     manifest_path: Path = DEFAULT_MANIFEST,
 ) -> tuple[dict[str, Any], dict[str, Any]]:
-    """Verify and load the trusted model bundle and its manifest.
+    """
+    Verify and load the trusted model bundle and its manifest.
 
     Parameters
     ----------
@@ -184,7 +203,8 @@ def predict_feature_table(
     table: pd.DataFrame,
     bundle: dict[str, Any],
 ) -> pd.DataFrame:
-    """Predict identifiable transport parameters from an in-memory feature table.
+    """
+    Predict identifiable transport parameters from an in-memory feature table.
 
     Parameters
     ----------
@@ -282,7 +302,8 @@ def predict_feature_table(
 
 
 def main() -> None:
-    """Run verified ADR1D-ML inference from a CSV feature table.
+    """
+    Run verified ADR1D-ML inference from a CSV feature table.
 
     Returns
     -------

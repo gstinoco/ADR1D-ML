@@ -1,37 +1,46 @@
 #!/usr/bin/env python3
-"""Train and evaluate the locked ADR1D-ML model specification.
+"""
+================================================================================
+ADR1D-ML: Locked Model Training and Evaluation
+================================================================================
 
 This module reconstructs the four ADR1D-ML pipelines from the protocol fixed
 before final testing. It verifies every locked input, fits the models on the
 combined training and validation scenarios, evaluates the reserved test split,
 and serializes the model bundle and reproducibility artifacts.
 
-Main operations
+Main Operations
 ---------------
 1. Verify the locked protocol and all input SHA-256 digests.
 2. Fit effective-velocity, effective-dispersion, and decay pipelines.
 3. Compute the unchanged final-test metrics and scenario predictions.
 4. Serialize the bundle and write its machine-readable manifest.
 
-Authors and contributors
-------------------------
-Gerardo Tinoco-Guerrero, Francisco J. Domínguez-Mota,
-J. Alberto Guzmán-Torres, Gabriela Pedraza-Jiménez, Eli Chagolla-Inzunza,
-Jorge L. González-Figueroa, Christopher N. Magaña-Barocio, and
-Maria Goretti Fraga-Lopez.
+Authors
+-------
+Gerardo Tinoco-Guerrero
+Francisco J. Domínguez-Mota
+J. Alberto Guzmán-Torres
 
 Universidad Michoacana de San Nicolás de Hidalgo, Morelia, Mexico.
 Contact: gerardo.tinoco@umich.mx
 
-Funding and institutional support
----------------------------------
-SECIHTI, CIC-UMSNH, SIIIA MATH: Soluciones en Ingeniería, CIMNE, and
-Aula CIMNE Morelia.
+Funding & Institutional Support
+-------------------------------
+This work received institutional and financial support from:
+- Secretariat of Science, Humanities, Technology and Innovation (SECIHTI),
+  Mexico.
+- Coordination of Scientific Research, Universidad Michoacana de San Nicolás
+  de Hidalgo (CIC-UMSNH), Mexico.
+- SIIIA MATH: Soluciones en Ingeniería.
+- International Centre for Numerical Methods in Engineering (CIMNE).
+- Aula CIMNE Morelia.
 
-Revision history
+Revision History
 ----------------
 - Initial release: July 2026.
-- Last modification: July 2026.
+- Last update: July 2026.
+================================================================================
 """
 
 from __future__ import annotations
@@ -90,7 +99,8 @@ EXPECTED_PROTOCOL_SHA256 = (
 
 @contextmanager
 def _guarded_linear_algebra() -> Iterable[None]:
-    """Suppress expected matrix warnings during fitting and prediction.
+    """
+    Suppress expected matrix warnings during fitting and prediction.
 
     Yields
     ------
@@ -110,7 +120,8 @@ def _guarded_linear_algebra() -> Iterable[None]:
 
 
 def _require_finite(values: np.ndarray, label: str) -> None:
-    """Require every value in a numeric array to be finite.
+    """
+    Require every value in a numeric array to be finite.
 
     Parameters
     ----------
@@ -130,7 +141,8 @@ def _require_finite(values: np.ndarray, label: str) -> None:
 
 
 def _validate_fitted_estimator(estimator: object, label: str) -> None:
-    """Check finite learned parameters on a fitted estimator or pipeline.
+    """
+    Check finite learned parameters on a fitted estimator or pipeline.
 
     Parameters
     ----------
@@ -160,7 +172,8 @@ def _regression_metrics(
     actual_physical: np.ndarray,
     predicted_physical: np.ndarray,
 ) -> dict[str, float]:
-    """Compute locked regression metrics in logarithmic and physical scales.
+    """
+    Compute locked regression metrics in logarithmic and physical scales.
 
     Parameters
     ----------
@@ -198,7 +211,8 @@ def _regression_metrics(
 
 
 def _sha256(path: Path) -> str:
-    """Compute the SHA-256 digest of a file in bounded-memory blocks.
+    """
+    Compute the SHA-256 digest of a file in bounded-memory blocks.
 
     Parameters
     ----------
@@ -219,7 +233,8 @@ def _sha256(path: Path) -> str:
 
 
 def _verify_protocol(protocol: dict[str, Any]) -> None:
-    """Verify the locked protocol and all model-development inputs.
+    """
+    Verify the locked protocol and all model-development inputs.
 
     Parameters
     ----------
@@ -248,7 +263,8 @@ def _verify_protocol(protocol: dict[str, Any]) -> None:
 
 
 def _tree_regression_pipeline(parameters: dict[str, Any]) -> Pipeline:
-    """Construct a median-imputed Extra Trees regression pipeline.
+    """
+    Construct a median-imputed Extra Trees regression pipeline.
 
     Parameters
     ----------
@@ -270,7 +286,8 @@ def _tree_regression_pipeline(parameters: dict[str, Any]) -> Pipeline:
 
 
 def _classifier_pipeline(parameters: dict[str, Any]) -> Pipeline:
-    """Construct the decay-resolvability classification pipeline.
+    """
+    Construct the decay-resolvability classification pipeline.
 
     Parameters
     ----------
@@ -295,7 +312,8 @@ def _classifier_pipeline(parameters: dict[str, Any]) -> Pipeline:
 def _by_regime_metrics(
     predictions: pd.DataFrame,
 ) -> dict[str, dict[str, float]]:
-    """Summarize effective-parameter errors by ADR1D physical regime.
+    """
+    Summarize effective-parameter errors by ADR1D physical regime.
 
     Parameters
     ----------
@@ -335,7 +353,8 @@ def _by_regime_metrics(
 
 
 def main() -> None:
-    """Reconstruct, evaluate, and serialize the locked ADR1D-ML release.
+    """
+    Reconstruct, evaluate, and serialize the locked ADR1D-ML release.
 
     Returns
     -------

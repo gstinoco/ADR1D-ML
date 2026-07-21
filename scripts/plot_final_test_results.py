@@ -1,37 +1,46 @@
 #!/usr/bin/env python3
-"""Visualize the locked final-test results distributed with ADR1D-ML.
+"""
+================================================================================
+ADR1D-ML: Locked-Test Visualization
+================================================================================
 
 This module creates the four-panel diagnostic figure distributed with
 ADR1D-ML. It visualizes effective-parameter agreement, decay-resolvability
 probabilities, and conditional decay-rate predictions using only the locked
 test prediction and metric artifacts.
 
-Main operations
+Main Operations
 ---------------
 1. Plot reference-versus-predicted effective velocity and dispersion.
 2. Display decay probabilities by physical detectability state.
 3. Plot conditional decay magnitude for resolvable test cases.
 4. Export a deterministic, publication-ready PNG image.
 
-Authors and contributors
-------------------------
-Gerardo Tinoco-Guerrero, Francisco J. Domínguez-Mota,
-J. Alberto Guzmán-Torres, Gabriela Pedraza-Jiménez, Eli Chagolla-Inzunza,
-Jorge L. González-Figueroa, Christopher N. Magaña-Barocio, and
-Maria Goretti Fraga-Lopez.
+Authors
+-------
+Gerardo Tinoco-Guerrero
+Francisco J. Domínguez-Mota
+J. Alberto Guzmán-Torres
 
 Universidad Michoacana de San Nicolás de Hidalgo, Morelia, Mexico.
 Contact: gerardo.tinoco@umich.mx
 
-Funding and institutional support
----------------------------------
-SECIHTI, CIC-UMSNH, SIIIA MATH: Soluciones en Ingeniería, CIMNE, and
-Aula CIMNE Morelia.
+Funding & Institutional Support
+-------------------------------
+This work received institutional and financial support from:
+- Secretariat of Science, Humanities, Technology and Innovation (SECIHTI),
+  Mexico.
+- Coordination of Scientific Research, Universidad Michoacana de San Nicolás
+  de Hidalgo (CIC-UMSNH), Mexico.
+- SIIIA MATH: Soluciones en Ingeniería.
+- International Centre for Numerical Methods in Engineering (CIMNE).
+- Aula CIMNE Morelia.
 
-Revision history
+Revision History
 ----------------
 - Initial release: July 2026.
-- Last modification: July 2026.
+- Last update: July 2026.
+================================================================================
 """
 
 from __future__ import annotations
@@ -67,7 +76,8 @@ def _identity_limits(
     actual: np.ndarray,
     predicted: np.ndarray,
 ) -> tuple[float, float]:
-    """Compute shared positive limits for a logarithmic identity plot.
+    """
+    Compute shared positive limits for a logarithmic identity plot.
 
     Parameters
     ----------
@@ -88,7 +98,8 @@ def _identity_limits(
 
 
 def main() -> None:
-    """Generate and save the locked four-panel diagnostic figure.
+    """
+    Generate and save the locked four-panel diagnostic figure.
 
     Returns
     -------

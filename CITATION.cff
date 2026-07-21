@@ -20,21 +20,6 @@ authors:
     given-names: J. Alberto
     orcid: "https://orcid.org/0000-0002-9309-9390"
     affiliation: "Universidad Michoacana de San Nicolás de Hidalgo"
-  - family-names: Pedraza-Jiménez
-    given-names: Gabriela
-    affiliation: "Universidad Michoacana de San Nicolás de Hidalgo"
-  - family-names: Chagolla-Inzunza
-    given-names: Eli
-    affiliation: "Universidad Michoacana de San Nicolás de Hidalgo"
-  - family-names: González-Figueroa
-    given-names: Jorge L.
-    affiliation: "Universidad Michoacana de San Nicolás de Hidalgo"
-  - family-names: Magaña-Barocio
-    given-names: Christopher N.
-    affiliation: "Universidad Michoacana de San Nicolás de Hidalgo"
-  - family-names: Fraga-Lopez
-    given-names: Maria Goretti
-    affiliation: "Universidad Michoacana de San Nicolás de Hidalgo"
 keywords:
   - contaminant transport
   - inverse modeling

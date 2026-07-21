@@ -1,37 +1,46 @@
 #!/usr/bin/env python3
-"""Validate the integrity and results of the ADR1D-ML model bundle.
+"""
+================================================================================
+ADR1D-ML: Independent Model-Bundle Validation
+================================================================================
 
-This module independently verifies the public ADR1D-ML artifacts. It checks
-cryptographic digests, loads the trusted bundle, reproduces all locked test
-predictions, recomputes selected metrics, and confirms the operational rule
-that unresolved decay must not be reported as a numerical rate.
+This module independently verifies the distributed ADR1D-ML artifacts. It
+checks cryptographic digests, loads the trusted bundle, reproduces the locked
+test predictions, recomputes selected metrics, and verifies that unresolved
+decay is not reported as a numerical rate.
 
-Main operations
+Main Operations
 ---------------
 1. Verify model, protocol, metrics, and prediction digests.
 2. Reproduce five prediction arrays from the serialized pipelines.
 3. Recompute four representative final-test metrics.
 4. Write a machine-readable validation report.
 
-Authors and contributors
-------------------------
-Gerardo Tinoco-Guerrero, Francisco J. Domínguez-Mota,
-J. Alberto Guzmán-Torres, Gabriela Pedraza-Jiménez, Eli Chagolla-Inzunza,
-Jorge L. González-Figueroa, Christopher N. Magaña-Barocio, and
-Maria Goretti Fraga-Lopez.
+Authors
+-------
+Gerardo Tinoco-Guerrero
+Francisco J. Domínguez-Mota
+J. Alberto Guzmán-Torres
 
 Universidad Michoacana de San Nicolás de Hidalgo, Morelia, Mexico.
 Contact: gerardo.tinoco@umich.mx
 
-Funding and institutional support
----------------------------------
-SECIHTI, CIC-UMSNH, SIIIA MATH: Soluciones en Ingeniería, CIMNE, and
-Aula CIMNE Morelia.
+Funding & Institutional Support
+-------------------------------
+This work received institutional and financial support from:
+- Secretariat of Science, Humanities, Technology and Innovation (SECIHTI),
+  Mexico.
+- Coordination of Scientific Research, Universidad Michoacana de San Nicolás
+  de Hidalgo (CIC-UMSNH), Mexico.
+- SIIIA MATH: Soluciones en Ingeniería.
+- International Centre for Numerical Methods in Engineering (CIMNE).
+- Aula CIMNE Morelia.
 
-Revision history
+Revision History
 ----------------
 - Initial release: July 2026.
-- Last modification: July 2026.
+- Last update: July 2026.
+================================================================================
 """
 
 from __future__ import annotations
@@ -67,7 +76,8 @@ REPORT_PATH = RESULTS / "final_model_validation.json"
 
 @contextmanager
 def _guarded_linear_algebra() -> Iterable[None]:
-    """Suppress expected matrix warnings during independent prediction.
+    """
+    Suppress expected matrix warnings during independent prediction.
 
     Yields
     ------
@@ -87,7 +97,8 @@ def _guarded_linear_algebra() -> Iterable[None]:
 
 
 def _require_finite(values: np.ndarray, label: str) -> None:
-    """Require every value in a numeric array to be finite.
+    """
+    Require every value in a numeric array to be finite.
 
     Parameters
     ----------
@@ -107,7 +118,8 @@ def _require_finite(values: np.ndarray, label: str) -> None:
 
 
 def _sha256(path: Path) -> str:
-    """Compute the SHA-256 digest of a file in bounded-memory blocks.
+    """
+    Compute the SHA-256 digest of a file in bounded-memory blocks.
 
     Parameters
     ----------
@@ -128,7 +140,8 @@ def _sha256(path: Path) -> str:
 
 
 def _assert_close(actual: float, expected: float, label: str) -> None:
-    """Compare two scalar values with the locked numerical tolerance.
+    """
+    Compare two scalar values with the locked numerical tolerance.
 
     Parameters
     ----------
@@ -155,7 +168,8 @@ def _assert_array_close(
     expected: np.ndarray,
     label: str,
 ) -> None:
-    """Compare two prediction arrays with the locked numerical tolerance.
+    """
+    Compare two prediction arrays with the locked numerical tolerance.
 
     Parameters
     ----------
@@ -178,7 +192,8 @@ def _assert_array_close(
 
 
 def main() -> None:
-    """Validate the serialized model and locked final-test artifacts.
+    """
+    Validate the serialized model and locked final-test artifacts.
 
     Returns
     -------
