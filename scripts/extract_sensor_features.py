@@ -1,13 +1,48 @@
 #!/usr/bin/env python3
-"""Convert ADR1D-format sensor series into the 86 model input features."""
+"""Extract ADR1D sensor features for transport-parameter inference.
+
+This module converts ADR1D-format source metadata and concentration histories
+into the 86 predictors required by the public parameter-inference model. It
+validates the trained six-sensor geometry and temporal grid, summarizes each
+sensor history, and derives cross-sensor transport and attenuation descriptors.
+
+Main operations
+---------------
+1. Validate source and observation tables.
+2. Extract eleven descriptors from each of six sensor histories.
+3. Derive seventeen physics-motivated cross-sensor features.
+4. Export one model-ready row per scenario.
+
+Authors and contributors
+------------------------
+Gerardo Tinoco-Guerrero, Francisco J. Domínguez-Mota,
+J. Alberto Guzmán-Torres, Gabriela Pedraza-Jiménez, Eli Chagolla-Inzunza,
+Jorge L. González-Figueroa, Christopher N. Magaña-Barocio, and
+Maria Goretti Fraga-Lopez.
+
+Universidad Michoacana de San Nicolás de Hidalgo, Morelia, Mexico.
+Contact: gerardo.tinoco@umich.mx
+
+Funding and institutional support
+---------------------------------
+SECIHTI, CIC-UMSNH, SIIIA MATH: Soluciones en Ingeniería, CIMNE, and
+Aula CIMNE Morelia.
+
+Revision history
+----------------
+- Initial release: July 2026.
+- Last modification: July 2026.
+"""
 
 from __future__ import annotations
 
+# Standard library
 import argparse
 import json
 import math
 from pathlib import Path
 
+# Third-party libraries
 import numpy as np
 import pandas as pd
 
@@ -38,7 +73,16 @@ OBSERVATION_COLUMNS = [
 ]
 
 
-def parse_args() -> argparse.Namespace:
+def _parse_args() -> argparse.Namespace:
+    """Parse command-line paths for source, observation, and output tables.
+
+    Returns
+    -------
+    argparse.Namespace
+        Parsed command-line arguments with `sources_csv`, `observations_csv`,
+        and `output_csv` attributes represented as paths.
+
+    """
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--sources-csv", required=True, type=Path)
     parser.add_argument("--observations-csv", required=True, type=Path)
@@ -46,13 +90,53 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def require_columns(frame: pd.DataFrame, columns: list[str], label: str) -> None:
+def _require_columns(
+    frame: pd.DataFrame,
+    columns: list[str],
+    label: str,
+) -> None:
+    """Verify that a table contains every required column.
+
+    Parameters
+    ----------
+    frame : pandas.DataFrame
+        Table whose schema is being validated.
+    columns : list of str
+        Required column names.
+    label : str
+        Human-readable table name used in error messages.
+
+    Raises
+    ------
+    ValueError
+        If one or more required columns are missing.
+
+    """
     missing = [column for column in columns if column not in frame]
     if missing:
         raise ValueError(f"{label} is missing columns: {', '.join(missing)}")
 
 
-def parse_boolean(values: pd.Series) -> np.ndarray:
+def _parse_boolean(values: pd.Series) -> np.ndarray:
+    """Convert accepted textual or numeric Boolean flags into a Boolean array.
+
+    Parameters
+    ----------
+    values : pandas.Series
+        Values encoded as `true`, `false`, `1`, or `0`, without regard to
+        capitalization or surrounding whitespace.
+
+    Returns
+    -------
+    numpy.ndarray
+        One-dimensional Boolean array in the original row order.
+
+    Raises
+    ------
+    ValueError
+        If the series contains an unsupported flag.
+
+    """
     normalized = values.astype(str).str.strip().str.lower()
     valid = normalized.isin({"true", "false", "1", "0"})
     if not valid.all():
@@ -61,16 +145,48 @@ def parse_boolean(values: pd.Series) -> np.ndarray:
     return normalized.isin({"true", "1"}).to_numpy(dtype=bool)
 
 
-def trapezoidal_integral(values: np.ndarray, times: np.ndarray) -> float:
+def _trapezoidal_integral(values: np.ndarray, times: np.ndarray) -> float:
+    """Integrate a sampled signal with the composite trapezoidal rule.
+
+    Parameters
+    ----------
+    values : numpy.ndarray
+        Signal values ordered by time.
+    times : numpy.ndarray
+        Strictly increasing sample times in seconds.
+
+    Returns
+    -------
+    float
+        Approximate time integral of the sampled signal.
+
+    """
     increments = np.diff(times)
     return float(np.sum(0.5 * (values[:-1] + values[1:]) * increments))
 
 
-def cumulative_mass_time(
+def _cumulative_mass_time(
     signal: np.ndarray,
     times: np.ndarray,
     fraction: float,
 ) -> float:
+    """Locate the time at which a fraction of integrated signal mass is reached.
+
+    Parameters
+    ----------
+    signal : numpy.ndarray
+        Non-negative concentration signal ordered by time.
+    times : numpy.ndarray
+        Strictly increasing sample times in seconds.
+    fraction : float
+        Requested cumulative fraction between zero and one.
+
+    Returns
+    -------
+    float
+        Interpolated time in seconds, or `NaN` when total signal mass is zero.
+
+    """
     segment_mass = 0.5 * (signal[:-1] + signal[1:]) * np.diff(times)
     total_mass = float(segment_mass.sum())
     if total_mass <= 0.0:
@@ -83,19 +199,45 @@ def cumulative_mass_time(
         if next_cumulative >= target and mass > 0.0:
             local_fraction = (target - cumulative) / float(mass)
             return float(
-                times[index]
-                + local_fraction * (times[index + 1] - times[index])
+                times[index] + local_fraction * (times[index + 1] - times[index])
             )
         cumulative = next_cumulative
     return float(times[-1])
 
 
-def sensor_features(
+def _sensor_features(
     frame: pd.DataFrame,
     source_concentration: float,
     source_start: float,
     source_duration: float,
 ) -> dict[str, float]:
+    """Summarize one sensor concentration history with eleven descriptors.
+
+    Parameters
+    ----------
+    frame : pandas.DataFrame
+        One sensor history with time, observed concentration, and censoring
+        columns. Exactly 49 unique samples are required.
+    source_concentration : float
+        Inlet pulse concentration in mg/L.
+    source_start : float
+        Pulse start time in seconds.
+    source_duration : float
+        Positive pulse duration in seconds.
+
+    Returns
+    -------
+    dict of str to float
+        Detection, peak, integral, centroid, spread, and cumulative-time
+        descriptors. Time descriptors are measured relative to source start.
+
+    Raises
+    ------
+    ValueError
+        If the history has the wrong size, duplicated or unordered times,
+        invalid censoring flags, or non-finite detected concentrations.
+
+    """
     frame = frame.sort_values("time_s")
     if len(frame) != EXPECTED_TIMES_PER_SENSOR:
         raise ValueError(
@@ -107,7 +249,7 @@ def sensor_features(
 
     times = frame["time_s"].to_numpy(dtype=float)
     observed = frame["concentration_observed_mg_L"].to_numpy(dtype=float)
-    below_limit = parse_boolean(frame["is_below_detection_limit"])
+    below_limit = _parse_boolean(frame["is_below_detection_limit"])
     detected = ~below_limit
     if not np.isfinite(times).all():
         raise ValueError("Sensor times must be finite")
@@ -118,17 +260,16 @@ def sensor_features(
 
     signal = np.where(detected, observed, 0.0)
     detected_times = times[detected]
-    area = trapezoidal_integral(signal, times)
+    area = _trapezoidal_integral(signal, times)
     peak_value = float(signal.max())
-    peak_time = (
-        float(times[int(np.argmax(signal))]) if peak_value > 0.0 else math.nan
-    )
+    peak_time = float(times[int(np.argmax(signal))]) if peak_value > 0.0 else math.nan
 
     if area > 0.0:
-        first_moment = trapezoidal_integral(signal * times, times) / area
-        variance = trapezoidal_integral(
-            signal * np.square(times - first_moment), times
-        ) / area
+        first_moment = _trapezoidal_integral(signal * times, times) / area
+        variance = (
+            _trapezoidal_integral(signal * np.square(times - first_moment), times)
+            / area
+        )
         centroid = float(first_moment - source_start)
         spread = float(math.sqrt(max(variance, 0.0)))
     else:
@@ -140,9 +281,7 @@ def sensor_features(
         "peak_ratio": peak_value / source_concentration,
         "peak_time_since_source_s": peak_time - source_start,
         "first_detection_since_source_s": (
-            float(detected_times[0] - source_start)
-            if detected_times.size
-            else math.nan
+            float(detected_times[0] - source_start) if detected_times.size else math.nan
         ),
         "last_detection_since_source_s": (
             float(detected_times[-1] - source_start)
@@ -152,16 +291,27 @@ def sensor_features(
         "normalized_area": area / (source_concentration * source_duration),
         "centroid_since_source_s": centroid,
         "temporal_spread_s": spread,
-        "t10_since_source_s": cumulative_mass_time(signal, times, 0.10)
-        - source_start,
-        "t50_since_source_s": cumulative_mass_time(signal, times, 0.50)
-        - source_start,
-        "t90_since_source_s": cumulative_mass_time(signal, times, 0.90)
-        - source_start,
+        "t10_since_source_s": _cumulative_mass_time(signal, times, 0.10) - source_start,
+        "t50_since_source_s": _cumulative_mass_time(signal, times, 0.50) - source_start,
+        "t90_since_source_s": _cumulative_mass_time(signal, times, 0.90) - source_start,
     }
 
 
-def line_slope_and_r2(values: np.ndarray) -> tuple[float, float]:
+def _line_slope_and_r2(values: np.ndarray) -> tuple[float, float]:
+    """Fit a straight line against the six fixed sensor positions.
+
+    Parameters
+    ----------
+    values : numpy.ndarray
+        Six finite values ordered from sensor `S01` through `S06`.
+
+    Returns
+    -------
+    tuple of float
+        Least-squares slope and coefficient of determination. Both values are
+        `NaN` when at least one input is non-finite.
+
+    """
     positions = np.asarray(list(SENSOR_POSITIONS_M.values()), dtype=float)
     if not np.isfinite(values).all():
         return math.nan, math.nan
@@ -175,14 +325,47 @@ def line_slope_and_r2(values: np.ndarray) -> tuple[float, float]:
     return slope, float(np.clip(r2, 0.0, 1.0))
 
 
-def positive_inverse(value: float) -> float:
+def _positive_inverse(value: float) -> float:
+    """Return the inverse of a positive value.
+
+    Parameters
+    ----------
+    value : float
+        Candidate denominator.
+
+    Returns
+    -------
+    float
+        `1/value` for positive values and `NaN` otherwise.
+
+    """
     return 1.0 / value if value > 0.0 else math.nan
 
 
-def physics_features(row: dict[str, object]) -> dict[str, float]:
+def _physics_features(row: dict[str, object]) -> dict[str, float]:
+    """Derive seventeen transport descriptors across the six sensors.
+
+    Parameters
+    ----------
+    row : dict of str to object
+        Scenario-level source and sensor descriptors generated by this module.
+
+    Returns
+    -------
+    dict of str to float
+        Attenuation slopes, travel-time slopes, fit coefficients, and
+        physics-motivated velocity, dispersion, and decay proxies.
+
+    Notes
+    -----
+    The proxy variables support machine-learning inference; they are not
+    independent numerical estimates with guaranteed physical consistency.
+
+    """
     labels = [sensor_id.lower() for sensor_id in SENSOR_POSITIONS_M]
 
     def values(suffix: str) -> np.ndarray:
+        """Collect one sensor descriptor in upstream spatial order."""
         return np.asarray(
             [row[f"feature_{label}_{suffix}"] for label in labels],
             dtype=float,
@@ -195,19 +378,19 @@ def physics_features(row: dict[str, object]) -> dict[str, float]:
     t50 = values("t50_since_source_s")
     temporal_variance = values("temporal_spread_s") ** 2
 
-    log_peak_slope, log_peak_r2 = line_slope_and_r2(
+    log_peak_slope, log_peak_r2 = _line_slope_and_r2(
         np.log(np.clip(peak_ratio, 1e-12, None))
     )
-    log_area_slope, log_area_r2 = line_slope_and_r2(
+    log_area_slope, log_area_r2 = _line_slope_and_r2(
         np.log(np.clip(normalized_area, 1e-12, None))
     )
-    centroid_slope, centroid_r2 = line_slope_and_r2(centroid)
-    peak_time_slope, peak_time_r2 = line_slope_and_r2(peak_time)
-    t50_slope, t50_r2 = line_slope_and_r2(t50)
-    variance_slope, variance_r2 = line_slope_and_r2(temporal_variance)
+    centroid_slope, centroid_r2 = _line_slope_and_r2(centroid)
+    peak_time_slope, peak_time_r2 = _line_slope_and_r2(peak_time)
+    t50_slope, t50_r2 = _line_slope_and_r2(t50)
+    variance_slope, variance_r2 = _line_slope_and_r2(temporal_variance)
 
-    velocity_centroid = positive_inverse(centroid_slope)
-    velocity_t50 = positive_inverse(t50_slope)
+    velocity_centroid = _positive_inverse(centroid_slope)
+    velocity_t50 = _positive_inverse(t50_slope)
     dispersion_proxy = (
         max(0.0, 0.5 * variance_slope * velocity_centroid**3)
         if math.isfinite(velocity_centroid)
@@ -215,6 +398,7 @@ def physics_features(row: dict[str, object]) -> dict[str, float]:
     )
 
     def decay_proxy(attenuation_slope: float) -> float:
+        """Estimate non-negative decay from a fitted attenuation slope."""
         if not math.isfinite(velocity_centroid):
             return math.nan
         estimate = (
@@ -245,8 +429,26 @@ def physics_features(row: dict[str, object]) -> dict[str, float]:
 
 
 def validate_inputs(sources: pd.DataFrame, observations: pd.DataFrame) -> None:
-    require_columns(sources, SOURCE_COLUMNS, "Source table")
-    require_columns(observations, OBSERVATION_COLUMNS, "Observation table")
+    """Validate source metadata and raw sensor observations against the model domain.
+
+    Parameters
+    ----------
+    sources : pandas.DataFrame
+        One row per scenario with identifier, source concentration, start time,
+        and duration.
+    observations : pandas.DataFrame
+        Sensor histories containing all six trained locations and the fixed
+        0--86,400 s grid at 1,800 s intervals.
+
+    Raises
+    ------
+    ValueError
+        If schemas, identifiers, sensors, positions, row counts, or time grids
+        violate the public input contract.
+
+    """
+    _require_columns(sources, SOURCE_COLUMNS, "Source table")
+    _require_columns(observations, OBSERVATION_COLUMNS, "Observation table")
     if sources["scenario_id"].duplicated().any():
         raise ValueError("Source scenario identifiers must be unique")
     if set(sources["scenario_id"]) != set(observations["scenario_id"]):
@@ -275,6 +477,35 @@ def build_feature_table(
     sources: pd.DataFrame,
     observations: pd.DataFrame,
 ) -> pd.DataFrame:
+    """Build one model-ready feature row per source scenario.
+
+    Parameters
+    ----------
+    sources : pandas.DataFrame
+        Validated source table with one row per scenario.
+    observations : pandas.DataFrame
+        Validated observations with six complete sensor histories per scenario.
+
+    Returns
+    -------
+    pandas.DataFrame
+        Scenario identifier, optional split label, and 86 ordered predictor
+        columns. No transport target or analytical concentration is included.
+
+    Raises
+    ------
+    ValueError
+        If source concentration or duration is not positive.
+    RuntimeError
+        If the generated table does not contain exactly 86 predictors.
+
+    Notes
+    -----
+    Call :func:`validate_inputs` before this function when processing external
+    data. The command-line interface performs both stages automatically.
+
+    """
+    # Group once so each scenario can be processed without repeated filtering.
     observation_groups = {
         scenario_id: frame
         for scenario_id, frame in observations.groupby("scenario_id", sort=False)
@@ -288,6 +519,7 @@ def build_feature_table(
         if concentration <= 0.0 or duration <= 0.0:
             raise ValueError("Source concentration and duration must be positive")
 
+        # Source descriptors are known inputs, not inferred transport targets.
         row: dict[str, object] = {"scenario_id": source.scenario_id}
         if hasattr(source, "split"):
             row["split"] = source.split
@@ -309,11 +541,11 @@ def build_feature_table(
                     "is_below_detection_limit",
                 ],
             ]
-            features = sensor_features(frame, concentration, start, duration)
+            features = _sensor_features(frame, concentration, start, duration)
             prefix = f"feature_{sensor_id.lower()}_"
             row.update({prefix + name: value for name, value in features.items()})
 
-        row.update(physics_features(row))
+        row.update(_physics_features(row))
         rows.append(row)
 
     output = pd.DataFrame(rows)
@@ -324,10 +556,23 @@ def build_feature_table(
 
 
 def main() -> None:
-    args = parse_args()
+    """Validate input CSV files, extract features, and write the output table.
+
+    Returns
+    -------
+    None
+        Results are written to the path supplied through `--output-csv`; a
+        compact JSON execution summary is printed to standard output.
+
+    """
+    args = _parse_args()
+
+    # Load and validate the public raw-input contract.
     sources = pd.read_csv(args.sources_csv)
     observations = pd.read_csv(args.observations_csv)
     validate_inputs(sources, observations)
+
+    # Extract and persist one feature vector per scenario.
     output = build_feature_table(sources, observations)
     args.output_csv.parent.mkdir(parents=True, exist_ok=True)
     output.to_csv(args.output_csv, index=False, float_format="%.12g")

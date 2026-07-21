@@ -34,6 +34,7 @@
 - [File Integrity](#lock-file-integrity)
 - [Limitations](#warning-limitations--responsible-use)
 - [How to Cite](#memo-how-to-cite)
+- [Contributing](#hammer_and_wrench-contributing)
 - [Research Team](#scientist-research-team)
 - [License and Rights](#page_facing_up-license--rights)
 - [Acknowledgments](#pray-acknowledgments)
@@ -94,6 +95,7 @@ of machine-learning architecture.
 ```text
 .
 |-- README.md
+|-- CONTRIBUTING.md
 |-- CITATION.cff
 |-- LICENSE
 |-- LICENSE-DATA
@@ -671,6 +673,19 @@ release:
    [https://doi.org/10.1080/00401706.1979.10489755](https://doi.org/10.1080/00401706.1979.10489755)
 
 GitHub can also generate citation metadata directly from `CITATION.cff`.
+
+---
+
+## :hammer_and_wrench: Contributing
+
+Contributions are welcome when they preserve the documented feature contract,
+locked evaluation protocol, and deterministic behavior of the release. The
+project's Python conventions, required validation commands, and rules for
+changes to scientific assumptions are defined in
+[`CONTRIBUTING.md`](CONTRIBUTING.md).
+
+Please open an issue before changing sensor geometry, target definitions,
+trained-model behavior, or the interpretation of unresolved decay.
 
 ---
 

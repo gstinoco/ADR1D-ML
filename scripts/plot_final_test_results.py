@@ -1,8 +1,42 @@
 #!/usr/bin/env python3
-"""Create a compact diagnostic figure for the locked test evaluation."""
+"""Visualize the locked final-test results distributed with ADR1D-ML.
+
+This module creates the four-panel diagnostic figure distributed with
+ADR1D-ML. It visualizes effective-parameter agreement, decay-resolvability
+probabilities, and conditional decay-rate predictions using only the locked
+test prediction and metric artifacts.
+
+Main operations
+---------------
+1. Plot reference-versus-predicted effective velocity and dispersion.
+2. Display decay probabilities by physical detectability state.
+3. Plot conditional decay magnitude for resolvable test cases.
+4. Export a deterministic, publication-ready PNG image.
+
+Authors and contributors
+------------------------
+Gerardo Tinoco-Guerrero, Francisco J. Domínguez-Mota,
+J. Alberto Guzmán-Torres, Gabriela Pedraza-Jiménez, Eli Chagolla-Inzunza,
+Jorge L. González-Figueroa, Christopher N. Magaña-Barocio, and
+Maria Goretti Fraga-Lopez.
+
+Universidad Michoacana de San Nicolás de Hidalgo, Morelia, Mexico.
+Contact: gerardo.tinoco@umich.mx
+
+Funding and institutional support
+---------------------------------
+SECIHTI, CIC-UMSNH, SIIIA MATH: Soluciones en Ingeniería, CIMNE, and
+Aula CIMNE Morelia.
+
+Revision history
+----------------
+- Initial release: July 2026.
+- Last modification: July 2026.
+"""
 
 from __future__ import annotations
 
+# Standard library
 import json
 import os
 import shutil
@@ -14,12 +48,14 @@ CACHE = ROOT / "results/matplotlib_cache"
 CACHE.mkdir(parents=True, exist_ok=True)
 os.environ["MPLCONFIGDIR"] = str(CACHE)
 
-import matplotlib
+# Third-party libraries. Matplotlib is imported after defining its writable
+# cache because some restricted environments do not expose a user cache path.
+import matplotlib  # noqa: E402
 
 matplotlib.use("Agg")
-import matplotlib.pyplot as plt
-import numpy as np
-import pandas as pd
+import matplotlib.pyplot as plt  # noqa: E402
+import numpy as np  # noqa: E402
+import pandas as pd  # noqa: E402
 
 
 PREDICTIONS_PATH = ROOT / "results/final_test_predictions.csv"
@@ -27,13 +63,41 @@ METRICS_PATH = ROOT / "results/final_test_metrics.json"
 OUTPUT_PATH = ROOT / "docs/final_test_diagnostics.png"
 
 
-def identity_limits(actual: np.ndarray, predicted: np.ndarray) -> tuple[float, float]:
+def _identity_limits(
+    actual: np.ndarray,
+    predicted: np.ndarray,
+) -> tuple[float, float]:
+    """Compute shared positive limits for a logarithmic identity plot.
+
+    Parameters
+    ----------
+    actual : numpy.ndarray
+        Positive reference values.
+    predicted : numpy.ndarray
+        Positive model predictions.
+
+    Returns
+    -------
+    tuple of float
+        Lower and upper plotting limits with fixed visual margins.
+
+    """
     lower = float(min(actual.min(), predicted.min())) * 0.8
     upper = float(max(actual.max(), predicted.max())) * 1.25
     return lower, upper
 
 
 def main() -> None:
+    """Generate and save the locked four-panel diagnostic figure.
+
+    Returns
+    -------
+    None
+        The PNG image is written to `docs/final_test_diagnostics.png`; its path
+        is printed to standard output.
+
+    """
+    # Load only locked test artifacts; no model fitting occurs here.
     predictions = pd.read_csv(PREDICTIONS_PATH)
     metrics = json.loads(METRICS_PATH.read_text(encoding="utf-8"))
 
@@ -63,9 +127,23 @@ def main() -> None:
     for axis, actual_name, predicted_name, title, unit, color, scores in panels:
         actual = predictions[actual_name].to_numpy(dtype=float)
         predicted = predictions[predicted_name].to_numpy(dtype=float)
-        lower, upper = identity_limits(actual, predicted)
-        axis.scatter(actual, predicted, s=32, color=color, alpha=0.82, edgecolor="white", linewidth=0.4)
-        axis.plot([lower, upper], [lower, upper], color="#333333", linestyle="--", linewidth=1.2)
+        lower, upper = _identity_limits(actual, predicted)
+        axis.scatter(
+            actual,
+            predicted,
+            s=32,
+            color=color,
+            alpha=0.82,
+            edgecolor="white",
+            linewidth=0.4,
+        )
+        axis.plot(
+            [lower, upper],
+            [lower, upper],
+            color="#333333",
+            linestyle="--",
+            linewidth=1.2,
+        )
         axis.set_xscale("log")
         axis.set_yscale("log")
         axis.set_xlim(lower, upper)
@@ -76,7 +154,11 @@ def main() -> None:
         axis.text(
             0.04,
             0.95,
-            f"R2 = {scores['r2_physical']:.3f}\nMdAPE = {100*scores['median_absolute_percentage_error']:.1f}%",
+            (
+                f"R2 = {scores['r2_physical']:.3f}\n"
+                f"MdAPE = "
+                f"{100 * scores['median_absolute_percentage_error']:.1f}%"
+            ),
             transform=axis.transAxes,
             va="top",
             fontsize=9,
@@ -84,6 +166,7 @@ def main() -> None:
         )
         axis.grid(True, which="both", color="#dddddd", linewidth=0.6)
 
+    # Display classifier probabilities by the three physical decay states.
     probability_axis = axes[1, 0]
     state_order = ["zero", "below_resolution", "resolvable"]
     colors = ["#7f7f7f", "#59a14f", "#e15759"]
@@ -119,7 +202,11 @@ def main() -> None:
     probability_axis.text(
         0.98,
         0.05,
-        f"Balanced accuracy = {metrics['decay_resolvability']['balanced_accuracy']:.3f}\nROC AUC = {metrics['decay_resolvability']['roc_auc']:.3f}",
+        (
+            "Balanced accuracy = "
+            f"{metrics['decay_resolvability']['balanced_accuracy']:.3f}\n"
+            f"ROC AUC = {metrics['decay_resolvability']['roc_auc']:.3f}"
+        ),
         transform=probability_axis.transAxes,
         ha="right",
         va="bottom",
@@ -127,13 +214,16 @@ def main() -> None:
         bbox={"facecolor": "white", "edgecolor": "#bbbbbb", "alpha": 0.9},
     )
 
+    # Compare conditional decay magnitude only on physically resolvable cases.
     decay_axis = axes[1, 1]
     resolvable = predictions["actual_decay_resolvable"].eq(1)
-    actual_decay = predictions.loc[resolvable, "actual_decay_rate_s_1"].to_numpy(dtype=float)
+    actual_decay = predictions.loc[resolvable, "actual_decay_rate_s_1"].to_numpy(
+        dtype=float
+    )
     predicted_decay = predictions.loc[
         resolvable, "predicted_decay_rate_if_resolvable_s_1"
     ].to_numpy(dtype=float)
-    lower, upper = identity_limits(actual_decay, predicted_decay)
+    lower, upper = _identity_limits(actual_decay, predicted_decay)
     decay_axis.scatter(
         actual_decay,
         predicted_decay,
@@ -143,7 +233,9 @@ def main() -> None:
         edgecolor="white",
         linewidth=0.5,
     )
-    decay_axis.plot([lower, upper], [lower, upper], color="#333333", linestyle="--", linewidth=1.2)
+    decay_axis.plot(
+        [lower, upper], [lower, upper], color="#333333", linestyle="--", linewidth=1.2
+    )
     decay_axis.set_xscale("log")
     decay_axis.set_yscale("log")
     decay_axis.set_xlim(lower, upper)
@@ -156,13 +248,19 @@ def main() -> None:
     decay_axis.text(
         0.04,
         0.95,
-        f"n = {decay_scores['rows']}\nR2 log10 = {decay_scores['r2_log10']:.3f}\nMdAPE = {100*decay_scores['median_absolute_percentage_error']:.1f}%",
+        (
+            f"n = {decay_scores['rows']}\n"
+            f"R2 log10 = {decay_scores['r2_log10']:.3f}\n"
+            f"MdAPE = "
+            f"{100 * decay_scores['median_absolute_percentage_error']:.1f}%"
+        ),
         transform=decay_axis.transAxes,
         va="top",
         fontsize=9,
         bbox={"facecolor": "white", "edgecolor": "#bbbbbb", "alpha": 0.9},
     )
 
+    # Persist the figure and remove the repository-local font cache.
     fig.savefig(OUTPUT_PATH, dpi=180, facecolor="white")
     plt.close(fig)
     shutil.rmtree(CACHE, ignore_errors=True)

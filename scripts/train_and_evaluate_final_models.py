@@ -1,8 +1,42 @@
 #!/usr/bin/env python3
-"""Fit the locked ADR1D parameter models and evaluate the test split once."""
+"""Train and evaluate the locked ADR1D-ML model specification.
+
+This module reconstructs the four ADR1D-ML pipelines from the protocol fixed
+before final testing. It verifies every locked input, fits the models on the
+combined training and validation scenarios, evaluates the reserved test split,
+and serializes the model bundle and reproducibility artifacts.
+
+Main operations
+---------------
+1. Verify the locked protocol and all input SHA-256 digests.
+2. Fit effective-velocity, effective-dispersion, and decay pipelines.
+3. Compute the unchanged final-test metrics and scenario predictions.
+4. Serialize the bundle and write its machine-readable manifest.
+
+Authors and contributors
+------------------------
+Gerardo Tinoco-Guerrero, Francisco J. Domínguez-Mota,
+J. Alberto Guzmán-Torres, Gabriela Pedraza-Jiménez, Eli Chagolla-Inzunza,
+Jorge L. González-Figueroa, Christopher N. Magaña-Barocio, and
+Maria Goretti Fraga-Lopez.
+
+Universidad Michoacana de San Nicolás de Hidalgo, Morelia, Mexico.
+Contact: gerardo.tinoco@umich.mx
+
+Funding and institutional support
+---------------------------------
+SECIHTI, CIC-UMSNH, SIIIA MATH: Soluciones en Ingeniería, CIMNE, and
+Aula CIMNE Morelia.
+
+Revision history
+----------------
+- Initial release: July 2026.
+- Last modification: July 2026.
+"""
 
 from __future__ import annotations
 
+# Standard library
 import hashlib
 import json
 import math
@@ -11,6 +45,7 @@ from contextlib import contextmanager
 from pathlib import Path
 from typing import Any, Iterable
 
+# Third-party libraries
 import joblib
 import numpy as np
 import pandas as pd
@@ -54,9 +89,16 @@ EXPECTED_PROTOCOL_SHA256 = (
 
 
 @contextmanager
-def guarded_linear_algebra() -> Iterable[None]:
-    """Suppress known matrix warnings while retaining finite-value checks."""
+def _guarded_linear_algebra() -> Iterable[None]:
+    """Suppress expected matrix warnings during fitting and prediction.
 
+    Yields
+    ------
+    None
+        Control returns to the numerical block while warnings are scoped
+        locally. Explicit finite-value checks are performed afterward.
+
+    """
     with warnings.catch_warnings():
         warnings.filterwarnings(
             "ignore",
@@ -67,24 +109,77 @@ def guarded_linear_algebra() -> Iterable[None]:
             yield
 
 
-def require_finite(values: np.ndarray, label: str) -> None:
+def _require_finite(values: np.ndarray, label: str) -> None:
+    """Require every value in a numeric array to be finite.
+
+    Parameters
+    ----------
+    values : numpy.ndarray
+        Values produced during fitting or prediction.
+    label : str
+        Human-readable quantity name used in the exception message.
+
+    Raises
+    ------
+    FloatingPointError
+        If at least one value is `NaN` or infinite.
+
+    """
     if not np.isfinite(np.asarray(values, dtype=float)).all():
         raise FloatingPointError(f"Non-finite values found in {label}")
 
 
-def validate_fitted_estimator(estimator: Any, label: str) -> None:
+def _validate_fitted_estimator(estimator: object, label: str) -> None:
+    """Check finite learned parameters on a fitted estimator or pipeline.
+
+    Parameters
+    ----------
+    estimator : object
+        Fitted scikit-learn estimator or pipeline.
+    label : str
+        Model name used in diagnostic messages.
+
+    Raises
+    ------
+    FloatingPointError
+        If coefficients, intercepts, or feature importances are non-finite.
+
+    """
     model = estimator.steps[-1][1] if isinstance(estimator, Pipeline) else estimator
     for attribute in ("coef_", "intercept_", "feature_importances_"):
         if hasattr(model, attribute):
-            require_finite(np.asarray(getattr(model, attribute)), label + " " + attribute)
+            _require_finite(
+                np.asarray(getattr(model, attribute)),
+                label + " " + attribute,
+            )
 
 
-def regression_metrics(
+def _regression_metrics(
     actual_log: np.ndarray,
     predicted_log: np.ndarray,
     actual_physical: np.ndarray,
     predicted_physical: np.ndarray,
 ) -> dict[str, float]:
+    """Compute locked regression metrics in logarithmic and physical scales.
+
+    Parameters
+    ----------
+    actual_log : numpy.ndarray
+        Reference values transformed with base-10 logarithms.
+    predicted_log : numpy.ndarray
+        Predicted values in base-10 logarithmic space.
+    actual_physical : numpy.ndarray
+        Positive reference values in physical units.
+    predicted_physical : numpy.ndarray
+        Positive predictions in physical units.
+
+    Returns
+    -------
+    dict of str to float
+        RMSE, MAE, and R2 in both scales, together with mean and median
+        absolute percentage errors.
+
+    """
     absolute_percentage = np.abs(predicted_physical - actual_physical) / np.abs(
         actual_physical
     )
@@ -102,7 +197,20 @@ def regression_metrics(
     }
 
 
-def sha256(path: Path) -> str:
+def _sha256(path: Path) -> str:
+    """Compute the SHA-256 digest of a file in bounded-memory blocks.
+
+    Parameters
+    ----------
+    path : pathlib.Path
+        File to hash.
+
+    Returns
+    -------
+    str
+        Lowercase hexadecimal digest.
+
+    """
     digest = hashlib.sha256()
     with path.open("rb") as stream:
         for block in iter(lambda: stream.read(1024 * 1024), b""):
@@ -110,8 +218,21 @@ def sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
-def verify_protocol(protocol: dict[str, Any]) -> None:
-    if sha256(PROTOCOL_PATH) != EXPECTED_PROTOCOL_SHA256:
+def _verify_protocol(protocol: dict[str, Any]) -> None:
+    """Verify the locked protocol and all model-development inputs.
+
+    Parameters
+    ----------
+    protocol : dict
+        Parsed final model protocol containing trusted input digests.
+
+    Raises
+    ------
+    RuntimeError
+        If the protocol or any locked input differs from its recorded digest.
+
+    """
+    if _sha256(PROTOCOL_PATH) != EXPECTED_PROTOCOL_SHA256:
         raise RuntimeError("The locked final protocol has changed")
     paths = {
         "adr1d_modeling_table.csv": BASE_TABLE_PATH,
@@ -121,12 +242,25 @@ def verify_protocol(protocol: dict[str, Any]) -> None:
     }
     for name, path in paths.items():
         expected = protocol["input_artifacts"][name]
-        actual = sha256(path)
+        actual = _sha256(path)
         if actual != expected:
             raise RuntimeError(f"Locked input changed: {name}")
 
 
-def tree_regression_pipeline(parameters: dict[str, Any]) -> Pipeline:
+def _tree_regression_pipeline(parameters: dict[str, Any]) -> Pipeline:
+    """Construct a median-imputed Extra Trees regression pipeline.
+
+    Parameters
+    ----------
+    parameters : dict
+        Keyword arguments fixed for `ExtraTreesRegressor`.
+
+    Returns
+    -------
+    sklearn.pipeline.Pipeline
+        Unfitted imputation and tree-regression pipeline.
+
+    """
     return Pipeline(
         [
             ("imputer", SimpleImputer(strategy="median")),
@@ -135,7 +269,20 @@ def tree_regression_pipeline(parameters: dict[str, Any]) -> Pipeline:
     )
 
 
-def classifier_pipeline(parameters: dict[str, Any]) -> Pipeline:
+def _classifier_pipeline(parameters: dict[str, Any]) -> Pipeline:
+    """Construct the decay-resolvability classification pipeline.
+
+    Parameters
+    ----------
+    parameters : dict
+        Keyword arguments fixed for `LogisticRegression`.
+
+    Returns
+    -------
+    sklearn.pipeline.Pipeline
+        Unfitted median-imputation, standardization, and logistic pipeline.
+
+    """
     return Pipeline(
         [
             ("imputer", SimpleImputer(strategy="median")),
@@ -145,22 +292,41 @@ def classifier_pipeline(parameters: dict[str, Any]) -> Pipeline:
     )
 
 
-def by_regime_metrics(predictions: pd.DataFrame) -> dict[str, dict[str, float]]:
+def _by_regime_metrics(
+    predictions: pd.DataFrame,
+) -> dict[str, dict[str, float]]:
+    """Summarize effective-parameter errors by ADR1D physical regime.
+
+    Parameters
+    ----------
+    predictions : pandas.DataFrame
+        Final test predictions with reference and predicted effective values.
+
+    Returns
+    -------
+    dict of str to dict
+        Test-row counts and median absolute percentage errors for each regime.
+
+    """
     result: dict[str, dict[str, float]] = {}
     for regime, frame in predictions.groupby("diagnostic_regime"):
-        velocity_ape = np.abs(
-            frame["predicted_effective_velocity_m_s"]
-            - frame["actual_effective_velocity_m_s"]
-        ) / frame["actual_effective_velocity_m_s"]
-        dispersion_ape = np.abs(
-            frame["predicted_effective_dispersion_m2_s"]
-            - frame["actual_effective_dispersion_m2_s"]
-        ) / frame["actual_effective_dispersion_m2_s"]
+        velocity_ape = (
+            np.abs(
+                frame["predicted_effective_velocity_m_s"]
+                - frame["actual_effective_velocity_m_s"]
+            )
+            / frame["actual_effective_velocity_m_s"]
+        )
+        dispersion_ape = (
+            np.abs(
+                frame["predicted_effective_dispersion_m2_s"]
+                - frame["actual_effective_dispersion_m2_s"]
+            )
+            / frame["actual_effective_dispersion_m2_s"]
+        )
         result[str(regime)] = {
             "rows": int(len(frame)),
-            "velocity_median_absolute_percentage_error": float(
-                np.median(velocity_ape)
-            ),
+            "velocity_median_absolute_percentage_error": float(np.median(velocity_ape)),
             "dispersion_median_absolute_percentage_error": float(
                 np.median(dispersion_ape)
             ),
@@ -169,14 +335,35 @@ def by_regime_metrics(predictions: pd.DataFrame) -> dict[str, dict[str, float]]:
 
 
 def main() -> None:
+    """Reconstruct, evaluate, and serialize the locked ADR1D-ML release.
+
+    Returns
+    -------
+    None
+        Predictions, metrics, model bundle, and manifest are written to their
+        repository paths. Final metrics are printed as JSON.
+
+    Raises
+    ------
+    RuntimeError
+        If locked inputs, table alignment, row counts, or feature counts differ
+        from the protocol.
+
+    Notes
+    -----
+    Version 1.0.0 uses the already disclosed test split only to reproduce the
+    evaluation fixed before publication. It must not be retuned against that
+    split while retaining the original performance claim.
+
+    """
+    # Verify immutable development decisions before fitting any estimator.
     protocol = json.loads(PROTOCOL_PATH.read_text(encoding="utf-8"))
-    verify_protocol(protocol)
+    _verify_protocol(protocol)
     base = pd.read_csv(BASE_TABLE_PATH)
     decay = pd.read_csv(DECAY_TABLE_PATH)
 
-    if not base[["scenario_id", "split"]].equals(
-        decay[["scenario_id", "split"]]
-    ):
+    # Enforce scenario alignment and the locked development/test partition.
+    if not base[["scenario_id", "split"]].equals(decay[["scenario_id", "split"]]):
         raise RuntimeError("Base and decay tables are not aligned")
     development_mask = base["split"].isin(protocol["development_splits"])
     test_mask = base["split"].eq(protocol["test_split"])
@@ -185,22 +372,21 @@ def main() -> None:
 
     base_features = [name for name in base if name.startswith("feature_")]
     decay_features = [name for name in decay if name.startswith("feature_")]
-    compact_features = protocol["models"]["decay_rate_resolvable"][
-        "feature_columns"
-    ]
+    compact_features = protocol["models"]["decay_rate_resolvable"]["feature_columns"]
     if len(base_features) != 69 or len(decay_features) != 86:
         raise RuntimeError("Locked feature counts do not match")
 
-    velocity_model = tree_regression_pipeline(
+    # Reconstruct the four pipelines from protocol parameters only.
+    velocity_model = _tree_regression_pipeline(
         protocol["models"]["effective_velocity"]["parameters"]
     )
-    dispersion_model = tree_regression_pipeline(
+    dispersion_model = _tree_regression_pipeline(
         protocol["models"]["effective_dispersion"]["parameters"]
     )
-    decay_classifier = classifier_pipeline(
+    decay_classifier = _classifier_pipeline(
         protocol["models"]["decay_resolvability"]["parameters"]
     )
-    decay_regressor = tree_regression_pipeline(
+    decay_regressor = _tree_regression_pipeline(
         protocol["models"]["decay_rate_resolvable"]["parameters"]
     )
 
@@ -212,7 +398,8 @@ def main() -> None:
         development_decay["target_decay_resolvable"] == 1
     ]
 
-    with guarded_linear_algebra():
+    # Fit on development scenarios and evaluate the reserved scenarios once.
+    with _guarded_linear_algebra():
         velocity_model.fit(
             development_base[base_features],
             development_base["target_log10_effective_velocity"],
@@ -231,15 +418,9 @@ def main() -> None:
         )
 
         predicted_velocity_log = velocity_model.predict(test_base[base_features])
-        predicted_dispersion_log = dispersion_model.predict(
-            test_base[base_features]
-        )
-        decay_probabilities = decay_classifier.predict_proba(
-            test_decay[decay_features]
-        )
-        predicted_decay_log = decay_regressor.predict(
-            test_decay[compact_features]
-        )
+        predicted_dispersion_log = dispersion_model.predict(test_base[base_features])
+        decay_probabilities = decay_classifier.predict_proba(test_decay[decay_features])
+        predicted_decay_log = decay_regressor.predict(test_decay[compact_features])
 
     for name, estimator in {
         "effective velocity": velocity_model,
@@ -247,7 +428,7 @@ def main() -> None:
         "decay resolvability": decay_classifier,
         "resolvable decay rate": decay_regressor,
     }.items():
-        validate_fitted_estimator(estimator, name)
+        _validate_fitted_estimator(estimator, name)
 
     predicted_velocity = np.power(10.0, predicted_velocity_log)
     predicted_dispersion = np.power(10.0, predicted_dispersion_log)
@@ -265,7 +446,7 @@ def main() -> None:
         "decay probabilities": decay_probability,
         "decay-rate predictions": predicted_decay_if_resolvable,
     }.items():
-        require_finite(values, label)
+        _require_finite(values, label)
 
     predictions = test_decay[
         [
@@ -289,9 +470,9 @@ def main() -> None:
     ].to_numpy(dtype=int)
     predictions["predicted_decay_resolvable"] = predicted_resolvable
     predictions["predicted_decay_resolvable_probability"] = decay_probability
-    predictions["actual_decay_rate_s_1"] = test_decay[
-        "target_decay_rate_s_1"
-    ].to_numpy(dtype=float)
+    predictions["actual_decay_rate_s_1"] = test_decay["target_decay_rate_s_1"].to_numpy(
+        dtype=float
+    )
     predictions["predicted_decay_rate_if_resolvable_s_1"] = (
         predicted_decay_if_resolvable
     )
@@ -302,13 +483,14 @@ def main() -> None:
     )
     predictions.to_csv(PREDICTIONS_PATH, index=False, float_format="%.12g")
 
-    velocity_scores = regression_metrics(
+    # Compute the unchanged final-test metrics in both numerical scales.
+    velocity_scores = _regression_metrics(
         test_base["target_log10_effective_velocity"].to_numpy(dtype=float),
         predicted_velocity_log,
         test_base["target_effective_velocity_m_s"].to_numpy(dtype=float),
         predicted_velocity,
     )
-    dispersion_scores = regression_metrics(
+    dispersion_scores = _regression_metrics(
         test_base["target_log10_effective_dispersion"].to_numpy(dtype=float),
         predicted_dispersion_log,
         test_base["target_effective_dispersion_m2_s"].to_numpy(dtype=float),
@@ -327,21 +509,22 @@ def main() -> None:
         "recall": float(
             recall_score(actual_resolvable, predicted_resolvable, zero_division=0)
         ),
-        "f1": float(
-            f1_score(actual_resolvable, predicted_resolvable, zero_division=0)
-        ),
+        "f1": float(f1_score(actual_resolvable, predicted_resolvable, zero_division=0)),
         "roc_auc": float(roc_auc_score(actual_resolvable, decay_probability)),
         "log_loss": float(log_loss(actual_resolvable, decay_probabilities)),
         "decision_threshold": decision_threshold,
         "confusion_matrix_tn_fp_fn_tp": confusion_matrix(
             actual_resolvable, predicted_resolvable
-        ).ravel().astype(int).tolist(),
+        )
+        .ravel()
+        .astype(int)
+        .tolist(),
     }
 
     resolvable_mask = actual_resolvable == 1
-    actual_decay = predictions.loc[
-        resolvable_mask, "actual_decay_rate_s_1"
-    ].to_numpy(dtype=float)
+    actual_decay = predictions.loc[resolvable_mask, "actual_decay_rate_s_1"].to_numpy(
+        dtype=float
+    )
     predicted_decay = predicted_decay_if_resolvable[resolvable_mask]
     actual_decay_log = np.log10(actual_decay)
     predicted_decay_log_resolvable = np.log10(predicted_decay)
@@ -350,17 +533,13 @@ def main() -> None:
         "rows": int(resolvable_mask.sum()),
         "rmse_log10": float(
             math.sqrt(
-                mean_squared_error(
-                    actual_decay_log, predicted_decay_log_resolvable
-                )
+                mean_squared_error(actual_decay_log, predicted_decay_log_resolvable)
             )
         ),
         "mae_log10": float(
             mean_absolute_error(actual_decay_log, predicted_decay_log_resolvable)
         ),
-        "r2_log10": float(
-            r2_score(actual_decay_log, predicted_decay_log_resolvable)
-        ),
+        "r2_log10": float(r2_score(actual_decay_log, predicted_decay_log_resolvable)),
         "rmse_physical": float(
             math.sqrt(mean_squared_error(actual_decay, predicted_decay))
         ),
@@ -377,15 +556,16 @@ def main() -> None:
         "test_rows": int(test_mask.sum()),
         "test_decay_state_counts": {
             key: int(value)
-            for key, value in predictions[
-                "diagnostic_decay_state"
-            ].value_counts().to_dict().items()
+            for key, value in predictions["diagnostic_decay_state"]
+            .value_counts()
+            .to_dict()
+            .items()
         },
         "effective_velocity": velocity_scores,
         "effective_dispersion": dispersion_scores,
         "decay_resolvability": classification_scores,
         "decay_rate_conditional_on_resolvable": decay_regression_scores,
-        "by_regime": by_regime_metrics(predictions),
+        "by_regime": _by_regime_metrics(predictions),
         "post_test_tuning_performed": False,
         "software": {
             "joblib": joblib.__version__,
@@ -399,6 +579,7 @@ def main() -> None:
         encoding="utf-8",
     )
 
+    # Persist only standard scikit-learn objects and explicit column contracts.
     bundle = {
         "bundle_version": "1.0.0",
         "protocol_sha256": EXPECTED_PROTOCOL_SHA256,
@@ -424,16 +605,17 @@ def main() -> None:
     MODELS.mkdir(parents=True, exist_ok=True)
     joblib.dump(bundle, MODEL_PATH, compress=3)
 
+    # Bind the model, protocol, predictions, metrics, and training code by hash.
     manifest = {
         "bundle_version": "1.0.0",
         "model_file": MODEL_PATH.name,
-        "model_sha256": sha256(MODEL_PATH),
+        "model_sha256": _sha256(MODEL_PATH),
         "model_size_bytes": MODEL_PATH.stat().st_size,
         "protocol_file": str(PROTOCOL_PATH.relative_to(ROOT)),
         "protocol_sha256": EXPECTED_PROTOCOL_SHA256,
-        "predictions_sha256": sha256(PREDICTIONS_PATH),
-        "metrics_sha256": sha256(METRICS_PATH),
-        "training_script_sha256": sha256(Path(__file__)),
+        "predictions_sha256": _sha256(PREDICTIONS_PATH),
+        "metrics_sha256": _sha256(METRICS_PATH),
+        "training_script_sha256": _sha256(Path(__file__)),
         "development_rows": int(development_mask.sum()),
         "test_rows": int(test_mask.sum()),
         "post_test_tuning_performed": False,
