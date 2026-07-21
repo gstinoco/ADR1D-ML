@@ -1,0 +1,44 @@
+cff-version: 1.2.0
+message: "If you use ADR1D-ML, please cite this software release."
+title: "ADR1D-ML: Identifiable Parameter Inference for One-Dimensional Reactive Transport"
+type: software
+version: 1.0.0
+repository-code: "https://github.com/gstinoco/ADR1D-ML"
+url: "https://github.com/gstinoco/ADR1D-ML"
+license: MIT
+authors:
+  - family-names: Tinoco-Guerrero
+    given-names: Gerardo
+    email: gerardo.tinoco@umich.mx
+    orcid: "https://orcid.org/0000-0003-3119-770X"
+    affiliation: "Universidad Michoacana de San Nicolás de Hidalgo"
+  - family-names: Domínguez-Mota
+    given-names: Francisco J.
+    orcid: "https://orcid.org/0000-0001-6837-172X"
+    affiliation: "Universidad Michoacana de San Nicolás de Hidalgo"
+  - family-names: Guzmán-Torres
+    given-names: J. Alberto
+    orcid: "https://orcid.org/0000-0002-9309-9390"
+    affiliation: "Universidad Michoacana de San Nicolás de Hidalgo"
+  - family-names: Pedraza-Jiménez
+    given-names: Gabriela
+    affiliation: "Universidad Michoacana de San Nicolás de Hidalgo"
+  - family-names: Chagolla-Inzunza
+    given-names: Eli
+    affiliation: "Universidad Michoacana de San Nicolás de Hidalgo"
+  - family-names: González-Figueroa
+    given-names: Jorge L.
+    affiliation: "Universidad Michoacana de San Nicolás de Hidalgo"
+  - family-names: Magaña-Barocio
+    given-names: Christopher N.
+    affiliation: "Universidad Michoacana de San Nicolás de Hidalgo"
+  - family-names: Fraga-Lopez
+    given-names: Maria Goretti
+    affiliation: "Universidad Michoacana de San Nicolás de Hidalgo"
+keywords:
+  - contaminant transport
+  - inverse modeling
+  - machine learning
+  - advection-dispersion-reaction
+  - parameter estimation
+  - scientific machine learning

@@ -1,0 +1,4 @@
+scenario_id,effective_velocity_m_s,effective_dispersion_m2_s,decay_resolvable_probability,decay_resolvable,decay_status,decay_rate_if_resolvable_s_1,reported_decay_rate_s_1
+ADR1D-0010,0.147980878697,4.19306311709,0.00376430621669,0,below_sensor_resolution,6.48925010377e-06,
+ADR1D-0088,0.232670780909,19.7548652682,0.0119793416414,0,below_sensor_resolution,7.27063820362e-06,
+ADR1D-0093,0.0508326922015,3.32590656781,0.997921922318,1,resolvable,3.85671451784e-06,3.85671451784e-06

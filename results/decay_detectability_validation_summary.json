@@ -1,0 +1,79 @@
+{
+  "counts": {
+    "train_resolvable_rows": 35,
+    "train_rows": 210,
+    "validation_resolvable_rows": 7,
+    "validation_rows": 45
+  },
+  "cv_metrics_sha256": "4530274f23771111e4c50ece91a63202cef2e14590656d00bab02281fd671f99",
+  "input_table_sha256": "9a8e769211b9e9e6b33e4f1f31dc11719cb3192ad909f5d0bc230b791db5623f",
+  "limitations": [
+    "Only 35 resolvable training scenarios and 7 resolvable validation scenarios are available.",
+    "Non-resolvable means below the modeled sensor resolution, not proof of zero decay."
+  ],
+  "predictions_sha256": "dc6585ebb9d6b6e569c2167aba9c3f4eb72487c52bb52207e753c8a587dbd1e6",
+  "random_seed": 20260720,
+  "selection": {
+    "folds_per_candidate": 15,
+    "method": "training-only repeated cross-validation with OOF threshold tuning",
+    "selected_classifier": {
+      "candidate_id": "all_86__logistic_c_10",
+      "configuration": {
+        "C": 10.0,
+        "class_weight": "balanced",
+        "max_iter": 5000
+      },
+      "decision_threshold": 0.19,
+      "feature_count": 86,
+      "feature_set": "all_86",
+      "model_family": "logistic"
+    },
+    "selected_regressor": {
+      "candidate_id": "compact_12__extra_trees_leaf_1_features_1",
+      "configuration": {
+        "max_features": 1.0,
+        "min_samples_leaf": 1,
+        "n_estimators": 300,
+        "random_state": 20260720
+      },
+      "feature_count": 12,
+      "feature_set": "compact_12",
+      "model_family": "extra_trees"
+    }
+  },
+  "software": {
+    "numpy": "2.0.2",
+    "pandas": "2.2.3",
+    "scikit_learn": "1.7.0"
+  },
+  "status": "complete",
+  "test_rows_evaluated": 0,
+  "validation": {
+    "classification": {
+      "accuracy": 0.8888888888888888,
+      "balanced_accuracy": 0.8759398496240601,
+      "confusion_matrix_tn_fp_fn_tp": [
+        34,
+        4,
+        1,
+        6
+      ],
+      "decision_threshold": 0.19,
+      "f1": 0.7058823529411765,
+      "log_loss": 0.3881606285072847,
+      "precision": 0.6,
+      "recall": 0.8571428571428571,
+      "roc_auc": 0.9736842105263158
+    },
+    "conditional_regression": {
+      "mae_log10": 0.14818323648776235,
+      "mae_physical": 2.072137189599437e-06,
+      "mean_absolute_percentage_error": 0.3698925896699635,
+      "median_absolute_percentage_error": 0.27309402040719516,
+      "r2_log10": 0.6724096755092765,
+      "rmse_log10": 0.17011379785469072,
+      "rmse_physical": 2.4567740893177554e-06,
+      "rows": 7
+    }
+  }
+}

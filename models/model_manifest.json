@@ -1,0 +1,14 @@
+{
+  "bundle_version": "1.0.0",
+  "development_rows": 255,
+  "metrics_sha256": "43f282e29c6fe4f12954c86dd53a9283651b249bb8a61f9bd4073da93b5ed732",
+  "model_file": "adr1d_parameter_models.joblib",
+  "model_sha256": "6890df1b30f5572611e5fcdc0d80a4f923e3877f93594b642c0d084c3f361cea",
+  "model_size_bytes": 7114591,
+  "post_test_tuning_performed": false,
+  "predictions_sha256": "4b23cea1de3c74a34e9769e190a23138fdf0a6def10c53b76273354641c223ff",
+  "protocol_file": "results/final_model_protocol.json",
+  "protocol_sha256": "56555a235dd6610a5bd3d6376cbe1123490fc50d28b6a0a0c0e8a0c342fdc2d3",
+  "test_rows": 45,
+  "training_script_sha256": "afb9374ddcfe73312c97f4855bc42204496ceef6b8a7c0788fa25f8cfcadba04"
+}

@@ -1,0 +1,11 @@
+{
+  "model_bundle_loaded": true,
+  "model_sha256": "6890df1b30f5572611e5fcdc0d80a4f923e3877f93594b642c0d084c3f361cea",
+  "model_size_bytes": 7114591,
+  "post_test_tuning_performed": false,
+  "protocol_sha256": "56555a235dd6610a5bd3d6376cbe1123490fc50d28b6a0a0c0e8a0c342fdc2d3",
+  "recomputed_metric_checks": 4,
+  "reproduced_prediction_arrays": 5,
+  "status": "ok",
+  "test_rows": 45
+}

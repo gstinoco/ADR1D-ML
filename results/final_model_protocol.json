@@ -1,0 +1,93 @@
+{
+  "development_splits": [
+    "train",
+    "validation"
+  ],
+  "input_artifacts": {
+    "adr1d_decay_detectability_table.csv": "9a8e769211b9e9e6b33e4f1f31dc11719cb3192ad909f5d0bc230b791db5623f",
+    "adr1d_modeling_table.csv": "dc493a05c70a8eaf3cf960ab6539caccd7ed4554b05d80e16373099291fd9cdf",
+    "baseline_validation_summary.json": "342c43a676a44ece180cf9de1517440a5aa39da05c92876fa1cea5df34e34b47",
+    "decay_detectability_validation_summary.json": "6374df835dad95e6ba373158a039322cc34425b98a604f5f7afb3a43ec3ffd06"
+  },
+  "locked_before_test": true,
+  "models": {
+    "decay_rate_resolvable": {
+      "estimator": "ExtraTreesRegressor",
+      "feature_columns": [
+        "feature_source_concentration_mg_L",
+        "feature_source_duration_s",
+        "feature_physics_log_peak_slope_per_m",
+        "feature_physics_log_peak_fit_r2",
+        "feature_physics_log_area_slope_per_m",
+        "feature_physics_log_area_fit_r2",
+        "feature_physics_centroid_slope_s_per_m",
+        "feature_physics_centroid_fit_r2",
+        "feature_physics_velocity_centroid_proxy_m_s",
+        "feature_physics_dispersion_proxy_m2_s",
+        "feature_physics_decay_area_proxy_s_1",
+        "feature_physics_decay_peak_proxy_s_1"
+      ],
+      "fit_rows": "development rows with target_decay_resolvable=1",
+      "parameters": {
+        "max_features": 1.0,
+        "min_samples_leaf": 1,
+        "n_estimators": 300,
+        "n_jobs": 1,
+        "random_state": 20260720
+      },
+      "preprocessing": "median imputation",
+      "target": "target_log10_decay_rate_resolvable"
+    },
+    "decay_resolvability": {
+      "decision_threshold": 0.19,
+      "estimator": "LogisticRegression",
+      "feature_column_rule": "all columns beginning with feature_ in adr1d_decay_detectability_table.csv",
+      "feature_count": 86,
+      "parameters": {
+        "C": 10.0,
+        "class_weight": "balanced",
+        "max_iter": 5000,
+        "random_state": 20260720
+      },
+      "preprocessing": "median imputation followed by standard scaling",
+      "target": "target_decay_resolvable"
+    },
+    "effective_dispersion": {
+      "estimator": "ExtraTreesRegressor",
+      "feature_column_rule": "all columns beginning with feature_ in adr1d_modeling_table.csv",
+      "feature_count": 69,
+      "parameters": {
+        "max_features": 1.0,
+        "min_samples_leaf": 1,
+        "n_estimators": 300,
+        "n_jobs": 1,
+        "random_state": 20260720
+      },
+      "preprocessing": "median imputation",
+      "target": "target_log10_effective_dispersion"
+    },
+    "effective_velocity": {
+      "estimator": "ExtraTreesRegressor",
+      "feature_column_rule": "all columns beginning with feature_ in adr1d_modeling_table.csv",
+      "feature_count": 69,
+      "parameters": {
+        "max_features": 1.0,
+        "min_samples_leaf": 1,
+        "n_estimators": 300,
+        "n_jobs": 1,
+        "random_state": 20260720
+      },
+      "preprocessing": "median imputation",
+      "target": "target_log10_effective_velocity"
+    }
+  },
+  "post_test_policy": "Report the locked metrics and limitations without model, feature, threshold, or hyperparameter changes.",
+  "protocol_version": "1.0.0",
+  "random_seed": 20260720,
+  "test_split": "test",
+  "training_policy": "Fit locked pipelines on train plus validation, then evaluate once on test.",
+  "validation_basis": {
+    "decay_detectability": "training-only repeated CV with OOF threshold tuning, followed by one validation evaluation",
+    "effective_parameters": "limited candidate comparison on the fixed validation split"
+  }
+}

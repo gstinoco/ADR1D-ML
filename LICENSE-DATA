@@ -1,0 +1,44 @@
+Creative Commons Attribution 4.0 International (CC BY 4.0)
+================================================================
+
+Copyright (c) 2026
+
+Gerardo Tinoco-Guerrero
+Francisco J. Domínguez-Mota
+J. Alberto Guzmán-Torres
+
+Licensed material
+-----------------
+
+The CSV files under `data/` are derived from ADR1D version 1.0.0 and are
+licensed under the Creative Commons Attribution 4.0 International license.
+They may be shared and adapted for any purpose, including commercial use,
+provided that users give appropriate credit, link to the license, and indicate
+whether changes were made. Attribution must not imply endorsement by the
+authors or their institutions.
+
+Complete license terms:
+
+https://creativecommons.org/licenses/by/4.0/legalcode.en
+
+Human-readable summary:
+
+https://creativecommons.org/licenses/by/4.0/
+
+Recommended attribution
+-----------------------
+
+Tinoco-Guerrero, G., Domínguez-Mota, F. J., and Guzmán-Torres, J. A. (2026).
+ADR1D-ML version 1.0.0, derived from ADR1D version 1.0.0.
+https://github.com/gstinoco/ADR1D-ML
+
+The upstream ADR1D repository is available at:
+
+https://github.com/gstinoco/ADR1D
+
+Scope
+-----
+
+This data license does not replace the MIT License governing source code and
+the serialized model bundle. Third-party software remains subject to its own
+licenses.

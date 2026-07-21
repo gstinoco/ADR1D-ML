@@ -1,0 +1,77 @@
+{
+  "active_decay_train_rows": 105,
+  "active_decay_validation_rows": 22,
+  "candidate_counts": {
+    "decay_activity": 12,
+    "decay_rate_active": 14,
+    "effective_dispersion": 14,
+    "effective_velocity": 14
+  },
+  "evaluation_split": "validation",
+  "feature_columns": 69,
+  "input_table_sha256": "dc493a05c70a8eaf3cf960ab6539caccd7ed4554b05d80e16373099291fd9cdf",
+  "metrics_sha256": "eb2e5163d140da6cd8c97ca43bcd7c421b10a7ab937f3795bb42f10c4f064f34",
+  "numeric_checks": {
+    "fitted_coefficients_and_importances_finite": true,
+    "predictions_and_probabilities_finite": true
+  },
+  "predictions_sha256": "5063d630e620931ef93a2e8b7d2492a848e73b6dcd65ee3c64b6d1113d8b9467",
+  "random_seed": 20260720,
+  "selected_candidates": {
+    "decay_activity": {
+      "candidate_id": "logistic_c_0.1",
+      "configuration": {
+        "C": 0.1,
+        "max_iter": 5000
+      },
+      "model_family": "logistic",
+      "selection_metric": "balanced_accuracy_max"
+    },
+    "decay_rate_active": {
+      "candidate_id": "extra_trees_leaf_1_features_1",
+      "configuration": {
+        "max_features": 1.0,
+        "min_samples_leaf": 1,
+        "n_estimators": 300,
+        "random_state": 20260720
+      },
+      "model_family": "extra_trees",
+      "selection_metric": "rmse_log10_min"
+    },
+    "effective_dispersion": {
+      "candidate_id": "extra_trees_leaf_1_features_1",
+      "configuration": {
+        "max_features": 1.0,
+        "min_samples_leaf": 1,
+        "n_estimators": 300,
+        "random_state": 20260720
+      },
+      "model_family": "extra_trees",
+      "selection_metric": "rmse_log10_min"
+    },
+    "effective_velocity": {
+      "candidate_id": "extra_trees_leaf_1_features_1",
+      "configuration": {
+        "max_features": 1.0,
+        "min_samples_leaf": 1,
+        "n_estimators": 300,
+        "random_state": 20260720
+      },
+      "model_family": "extra_trees",
+      "selection_metric": "rmse_log10_min"
+    }
+  },
+  "selection_rules": {
+    "classification": "maximum validation balanced accuracy; ROC AUC, F1, and log loss break ties",
+    "regression": "minimum validation RMSE in log10 target space; MAE and candidate ID break ties"
+  },
+  "software": {
+    "numpy": "2.0.2",
+    "pandas": "2.2.3",
+    "scikit_learn": "1.7.0"
+  },
+  "status": "complete",
+  "test_rows_evaluated": 0,
+  "train_rows": 210,
+  "validation_rows": 45
+}
