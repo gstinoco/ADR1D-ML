@@ -42,8 +42,6 @@ Revision History
 ================================================================================
 """
 
-from __future__ import annotations
-
 # Standard library
 import json
 import math
@@ -52,7 +50,7 @@ import shutil
 from pathlib import Path
 
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT  = Path(__file__).resolve().parents[1]
 CACHE = ROOT / "results/matplotlib_cache"
 CACHE.mkdir(parents=True, exist_ok=True)
 os.environ["MPLCONFIGDIR"] = str(CACHE)
@@ -69,34 +67,24 @@ from matplotlib.lines import Line2D  # noqa: E402
 from scipy.special import erfc  # noqa: E402
 
 
-MODELING_TABLE_PATH = ROOT / "data/adr1d_decay_detectability_table.csv"
-EXAMPLE_SOURCES_PATH = ROOT / "data/example_sources.csv"
-EXAMPLE_OBSERVATIONS_PATH = ROOT / "data/example_sensor_observations.csv"
-TEST_PREDICTIONS_PATH = ROOT / "results/final_test_predictions.csv"
-EXAMPLE_FIGURE_PATH = ROOT / "docs/simulation_examples.png"
-RECONSTRUCTION_FIGURE_PATH = ROOT / "docs/simulation_reconstructions.png"
+MODELING_TABLE_PATH         = ROOT / "data/adr1d_decay_detectability_table.csv"
+EXAMPLE_SOURCES_PATH        = ROOT / "data/example_sources.csv"
+EXAMPLE_OBSERVATIONS_PATH   = ROOT / "data/example_sensor_observations.csv"
+TEST_PREDICTIONS_PATH       = ROOT / "results/final_test_predictions.csv"
+EXAMPLE_FIGURE_PATH         = ROOT / "docs/simulation_examples.png"
+RECONSTRUCTION_FIGURE_PATH  = ROOT / "docs/simulation_reconstructions.png"
 RECONSTRUCTION_METRICS_PATH = ROOT / "results/simulation_reconstruction_metrics.csv"
 
-DOMAIN_LENGTH_M = 1000.0
-FINAL_TIME_S = 86400.0
-SENSOR_POSITIONS_M = np.asarray([100.0, 250.0, 400.0, 600.0, 800.0, 1000.0])
-FIELD_POSITIONS_M = np.linspace(0.0, DOMAIN_LENGTH_M, 201)
-FIELD_TIMES_S = np.linspace(0.0, FINAL_TIME_S, 121)
+DOMAIN_LENGTH_M     = 1000.0
+FINAL_TIME_S        = 86400.0
+SENSOR_POSITIONS_M  = np.asarray([100.0, 250.0, 400.0, 600.0, 800.0, 1000.0])
+FIELD_POSITIONS_M   = np.linspace(0.0, DOMAIN_LENGTH_M, 201)
+FIELD_TIMES_S       = np.linspace(0.0, FINAL_TIME_S, 121)
 EXAMPLE_STATE_ORDER = ("zero", "below_resolution", "resolvable")
-STATE_LABELS = {
-    "zero": "Zero decay",
-    "below_resolution": "Below resolution",
-    "resolvable": "Resolvable decay",
-}
+STATE_LABELS        = {"zero": "Zero decay", "below_resolution": "Below resolution", "resolvable": "Resolvable decay"}
 
 
-def _step_response_grid(
-    positions_m: np.ndarray,
-    elapsed_times_s: np.ndarray,
-    effective_velocity_m_s: float,
-    effective_dispersion_m2_s: float,
-    decay_rate_s_1: float,
-) -> np.ndarray:
+def _step_response_grid(positions_m, elapsed_times_s, effective_velocity_m_s, effective_dispersion_m2_s, decay_rate_s_1):
     """
     Evaluate the reactive Ogata-Banks unit-step response on a space-time grid.
 
@@ -133,7 +121,7 @@ def _step_response_grid(
 
     """
     positions = np.asarray(positions_m, dtype=float)
-    elapsed = np.asarray(elapsed_times_s, dtype=float)
+    elapsed   = np.asarray(elapsed_times_s, dtype=float)
     if positions.ndim != 1 or elapsed.ndim != 1:
         raise ValueError("Positions and elapsed times must be one-dimensional")
     if np.any(positions < 0.0) or np.any(~np.isfinite(positions)):
@@ -150,46 +138,24 @@ def _step_response_grid(
     if not positive.any():
         return response
 
-    x_grid = positions[np.newaxis, :]
-    time_grid = elapsed[positive, np.newaxis]
-    transport_speed = math.sqrt(
-        effective_velocity_m_s**2 + 4.0 * effective_dispersion_m2_s * decay_rate_s_1
-    )
-    denominator = 2.0 * np.sqrt(effective_dispersion_m2_s * time_grid)
-    first_exponent = (
-        (effective_velocity_m_s - transport_speed)
-        * x_grid
-        / (2.0 * effective_dispersion_m2_s)
-    )
-    second_exponent = (
-        (effective_velocity_m_s + transport_speed)
-        * x_grid
-        / (2.0 * effective_dispersion_m2_s)
-    )
-    first_argument = (x_grid - transport_speed * time_grid) / denominator
+    x_grid          = positions[np.newaxis, :]
+    time_grid       = elapsed[positive, np.newaxis]
+    transport_speed = math.sqrt(effective_velocity_m_s**2 + 4.0 * effective_dispersion_m2_s * decay_rate_s_1)
+    denominator     = 2.0 * np.sqrt(effective_dispersion_m2_s * time_grid)
+    first_exponent  = (effective_velocity_m_s - transport_speed) * x_grid / (2.0 * effective_dispersion_m2_s)
+    second_exponent = (effective_velocity_m_s + transport_speed) * x_grid / (2.0 * effective_dispersion_m2_s)
+    first_argument  = (x_grid - transport_speed * time_grid) / denominator
     second_argument = (x_grid + transport_speed * time_grid) / denominator
 
     with np.errstate(over="raise", invalid="raise"):
-        positive_response = 0.5 * (
-            np.exp(first_exponent) * erfc(first_argument)
-            + np.exp(second_exponent) * erfc(second_argument)
-        )
+        positive_response = 0.5 * (np.exp(first_exponent) * erfc(first_argument) + np.exp(second_exponent) * erfc(second_argument))
     if not np.isfinite(positive_response).all():
         raise FloatingPointError("Non-finite analytical step response")
     response[positive, :] = np.clip(positive_response, 0.0, 1.0)
     return response
 
 
-def _pulse_field(
-    positions_m: np.ndarray,
-    times_s: np.ndarray,
-    source_concentration_mg_L: float,
-    source_start_s: float,
-    source_duration_s: float,
-    effective_velocity_m_s: float,
-    effective_dispersion_m2_s: float,
-    decay_rate_s_1: float,
-) -> np.ndarray:
+def _pulse_field(positions_m, times_s, source_concentration_mg_L, source_start_s, source_duration_s, effective_velocity_m_s, effective_dispersion_m2_s, decay_rate_s_1):
     """
     Evaluate a finite inlet pulse by analytical step-response superposition.
 
@@ -230,31 +196,17 @@ def _pulse_field(
     if source_start_s < 0.0 or source_duration_s <= 0.0:
         raise ValueError("Source start and duration are outside their domains")
 
-    positions = np.asarray(positions_m, dtype=float)
-    times = np.asarray(times_s, dtype=float)
-    response_on = _step_response_grid(
-        positions,
-        times - source_start_s,
-        effective_velocity_m_s,
-        effective_dispersion_m2_s,
-        decay_rate_s_1,
-    )
-    response_off = _step_response_grid(
-        positions,
-        times - source_start_s - source_duration_s,
-        effective_velocity_m_s,
-        effective_dispersion_m2_s,
-        decay_rate_s_1,
-    )
-    field = source_concentration_mg_L * (response_on - response_off)
+    positions    = np.asarray(positions_m, dtype=float)
+    times        = np.asarray(times_s, dtype=float)
+    response_on  = _step_response_grid(positions, times - source_start_s, effective_velocity_m_s, effective_dispersion_m2_s, decay_rate_s_1)
+    response_off = _step_response_grid(positions, times - source_start_s - source_duration_s, effective_velocity_m_s, effective_dispersion_m2_s, decay_rate_s_1)
+    field        = source_concentration_mg_L * (response_on - response_off)
 
     # Enforce the finite-pulse boundary exactly at x = 0.
     boundary = np.isclose(positions, 0.0)
-    active = (times >= source_start_s) & (times < source_start_s + source_duration_s)
+    active   = (times >= source_start_s) & (times < source_start_s + source_duration_s)
     if boundary.any():
-        field[:, boundary] = np.where(
-            active[:, np.newaxis], source_concentration_mg_L, 0.0
-        )
+        field[:, boundary] = np.where(active[:, np.newaxis], source_concentration_mg_L, 0.0)
 
     tolerance = 1.0e-10 * max(1.0, source_concentration_mg_L)
     if float(field.min()) < -tolerance:
@@ -264,7 +216,7 @@ def _pulse_field(
     return np.clip(field, 0.0, source_concentration_mg_L)
 
 
-def _load_inputs() -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+def _load_inputs():
     """
     Load and validate the public tables required by both visualizations.
 
@@ -281,21 +233,17 @@ def _load_inputs() -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFra
         incomplete.
 
     """
-    modeling = pd.read_csv(MODELING_TABLE_PATH)
-    sources = pd.read_csv(EXAMPLE_SOURCES_PATH)
+    modeling     = pd.read_csv(MODELING_TABLE_PATH)
+    sources      = pd.read_csv(EXAMPLE_SOURCES_PATH)
     observations = pd.read_csv(EXAMPLE_OBSERVATIONS_PATH)
-    predictions = pd.read_csv(TEST_PREDICTIONS_PATH)
+    predictions  = pd.read_csv(TEST_PREDICTIONS_PATH)
 
-    for label, frame in {
-        "modeling table": modeling,
-        "example sources": sources,
-        "test predictions": predictions,
-    }.items():
+    for label, frame in {"modeling table": modeling, "example sources": sources, "test predictions": predictions}.items():
         if frame["scenario_id"].duplicated().any():
             raise ValueError(f"Duplicate scenario identifiers in {label}")
 
     example_rows = modeling.loc[modeling["scenario_id"].isin(sources["scenario_id"])]
-    states = set(example_rows["diagnostic_decay_state"])
+    states       = set(example_rows["diagnostic_decay_state"])
     if len(example_rows) != 3 or states != set(EXAMPLE_STATE_ORDER):
         raise ValueError("Examples must contain one scenario from each decay state")
     if set(observations["scenario_id"]) != set(sources["scenario_id"]):
@@ -303,11 +251,7 @@ def _load_inputs() -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFra
     return modeling, sources, observations, predictions
 
 
-def _plot_simulation_examples(
-    modeling: pd.DataFrame,
-    sources: pd.DataFrame,
-    observations: pd.DataFrame,
-) -> None:
+def _plot_simulation_examples(modeling, sources, observations):
     """
     Plot benchmark fields and virtual-sensor curves for three decay states.
 
@@ -347,135 +291,47 @@ def _plot_simulation_examples(
         on="scenario_id",
         validate="one_to_one",
     )
-    for source_name, feature_name in {
-        "source_concentration_mg_L": "feature_source_concentration_mg_L",
-        "source_start_s": "feature_source_start_s",
-        "source_duration_s": "feature_source_duration_s",
-    }.items():
-        if not np.allclose(
-            joined[source_name], joined[feature_name], rtol=0.0, atol=1e-9
-        ):
+    for source_name, feature_name in {"source_concentration_mg_L": "feature_source_concentration_mg_L", "source_start_s": "feature_source_start_s", "source_duration_s": "feature_source_duration_s"}.items():
+        if not np.allclose(joined[source_name], joined[feature_name], rtol=0.0, atol=1e-9):
             raise ValueError(f"Example source mismatch in {source_name}")
 
     ordered = joined.set_index("diagnostic_decay_state").loc[list(EXAMPLE_STATE_ORDER)]
-    fig, axes = plt.subplots(
-        2,
-        3,
-        figsize=(15.5, 8.8),
-        layout="constrained",
-        sharex="row",
-        sharey="row",
-    )
+    fig, axes = plt.subplots(2, 3, figsize=(15.5, 8.8), layout="constrained", sharex="row", sharey="row")
     fig.suptitle("ADR1D simulation examples", fontsize=16, fontweight="bold")
     sensor_colors = plt.get_cmap("tab10")(np.linspace(0.0, 0.5, 6))
-    heatmap = None
+    heatmap       = None
 
     for column, (state, row) in enumerate(ordered.iterrows()):
         source_concentration = float(row["source_concentration_mg_L"])
-        source_start = float(row["source_start_s"])
-        source_duration = float(row["source_duration_s"])
-        parameters = (
-            float(row["target_effective_velocity_m_s"]),
-            float(row["target_effective_dispersion_m2_s"]),
-            float(row["target_decay_rate_s_1"]),
-        )
-        field = _pulse_field(
-            FIELD_POSITIONS_M,
-            FIELD_TIMES_S,
-            source_concentration,
-            source_start,
-            source_duration,
-            *parameters,
-        )
-        normalized = field / source_concentration
+        source_start         = float(row["source_start_s"])
+        source_duration      = float(row["source_duration_s"])
+        parameters           = (float(row["target_effective_velocity_m_s"]), float(row["target_effective_dispersion_m2_s"]), float(row["target_decay_rate_s_1"]))
+        field                = _pulse_field(FIELD_POSITIONS_M, FIELD_TIMES_S, source_concentration, source_start, source_duration, *parameters)
+        normalized           = field / source_concentration
 
         field_axis = axes[0, column]
-        heatmap = field_axis.pcolormesh(
-            FIELD_POSITIONS_M,
-            FIELD_TIMES_S / 3600.0,
-            normalized,
-            shading="auto",
-            cmap="cividis",
-            vmin=0.0,
-            vmax=1.0,
-        )
+        heatmap    = field_axis.pcolormesh(FIELD_POSITIONS_M, FIELD_TIMES_S / 3600.0, normalized, shading="auto", cmap="cividis", vmin=0.0, vmax=1.0)
         for sensor_position in SENSOR_POSITIONS_M:
-            field_axis.axvline(
-                sensor_position,
-                color="white",
-                linewidth=0.55,
-                linestyle=":",
-                alpha=0.75,
-            )
-        field_axis.set_title(
-            f"{STATE_LABELS[state]}\n{row['scenario_id']}",
-            fontsize=11,
-            fontweight="bold",
-        )
+            field_axis.axvline(sensor_position, color="white", linewidth=0.55, linestyle=":", alpha=0.75)
+        field_axis.set_title(f"{STATE_LABELS[state]}\n{row['scenario_id']}", fontsize=11, fontweight="bold")
         field_axis.set_xlabel("Distance (m)")
         if column == 0:
             field_axis.set_ylabel("Time (h)")
 
-        curve_axis = axes[1, column]
-        scenario_observations = observations.loc[
-            observations["scenario_id"] == row["scenario_id"]
-        ]
+        curve_axis            = axes[1, column]
+        scenario_observations = observations.loc[observations["scenario_id"] == row["scenario_id"]]
         for sensor_index, sensor_position in enumerate(SENSOR_POSITIONS_M):
-            color = sensor_colors[sensor_index]
-            analytical_curve = _pulse_field(
-                np.asarray([sensor_position]),
-                FIELD_TIMES_S,
-                source_concentration,
-                source_start,
-                source_duration,
-                *parameters,
-            )[:, 0]
-            curve_axis.plot(
-                FIELD_TIMES_S / 3600.0,
-                analytical_curve / source_concentration,
-                color=color,
-                linewidth=1.45,
-            )
-            sensor_id = f"S{sensor_index + 1:02d}"
-            sensor_rows = scenario_observations.loc[
-                scenario_observations["sensor_id"] == sensor_id
-            ]
-            censored = (
-                sensor_rows["is_below_detection_limit"]
-                .astype(str)
-                .str.lower()
-                .eq("true")
-                .to_numpy()
-            )
-            observed = (
-                sensor_rows["concentration_observed_mg_L"].to_numpy(dtype=float)
-                / source_concentration
-            )
+            color            = sensor_colors[sensor_index]
+            analytical_curve = _pulse_field(np.asarray([sensor_position]), FIELD_TIMES_S, source_concentration, source_start, source_duration, *parameters)[:, 0]
+            curve_axis.plot(FIELD_TIMES_S / 3600.0, analytical_curve / source_concentration, color=color, linewidth=1.45)
+            sensor_id      = f"S{sensor_index + 1:02d}"
+            sensor_rows    = scenario_observations.loc[scenario_observations["sensor_id"] == sensor_id]
+            censored       = sensor_rows["is_below_detection_limit"].astype(str).str.lower().eq("true").to_numpy()
+            observed       = sensor_rows["concentration_observed_mg_L"].to_numpy(dtype=float) / source_concentration
             observed_times = sensor_rows["time_s"].to_numpy(dtype=float) / 3600.0
-            curve_axis.scatter(
-                observed_times[~censored],
-                observed[~censored],
-                color=color,
-                s=10,
-                alpha=0.75,
-                linewidth=0.0,
-            )
-            curve_axis.scatter(
-                observed_times[censored],
-                observed[censored],
-                color=color,
-                marker="x",
-                s=12,
-                alpha=0.6,
-                linewidth=0.7,
-            )
-        curve_axis.axvspan(
-            source_start / 3600.0,
-            (source_start + source_duration) / 3600.0,
-            color="#999999",
-            alpha=0.12,
-            linewidth=0.0,
-        )
+            curve_axis.scatter(observed_times[~censored], observed[~censored], color=color, s=10, alpha=0.75, linewidth=0.0)
+            curve_axis.scatter(observed_times[censored], observed[censored], color=color, marker="x", s=12, alpha=0.6, linewidth=0.7)
+        curve_axis.axvspan(source_start / 3600.0, (source_start + source_duration) / 3600.0, color="#999999", alpha=0.12, linewidth=0.0)
         curve_axis.set_xlim(0.0, FINAL_TIME_S / 3600.0)
         curve_axis.set_ylim(-0.015, 1.08)
         curve_axis.set_xlabel("Time (h)")
@@ -485,61 +341,20 @@ def _plot_simulation_examples(
 
     if heatmap is None:
         raise RuntimeError("No simulation example was plotted")
-    fig.colorbar(
-        heatmap,
-        ax=axes[0, :],
-        label="Normalized concentration, C/C0",
-        shrink=0.86,
-        pad=0.015,
-    )
-    sensor_handles = [
-        Line2D(
-            [0],
-            [0],
-            color=sensor_colors[index],
-            linewidth=1.6,
-            label=f"S{index + 1:02d}: {position:.0f} m",
-        )
-        for index, position in enumerate(SENSOR_POSITIONS_M)
-    ]
+    fig.colorbar(heatmap, ax=axes[0, :], label="Normalized concentration, C/C0", shrink=0.86, pad=0.015)
+    sensor_handles = [Line2D([0], [0], color=sensor_colors[index], linewidth=1.6, label=f"S{index + 1:02d}: {position:.0f} m") for index, position in enumerate(SENSOR_POSITIONS_M)]
     sensor_handles.extend(
         [
-            Line2D(
-                [0],
-                [0],
-                color="#555555",
-                marker="o",
-                linestyle="none",
-                markersize=4,
-                label="Observed",
-            ),
-            Line2D(
-                [0],
-                [0],
-                color="#555555",
-                marker="x",
-                linestyle="none",
-                markersize=5,
-                label="Censored",
-            ),
+            Line2D([0], [0], color="#555555", marker="o", linestyle="none", markersize=4, label="Observed"),
+            Line2D([0], [0], color="#555555", marker="x", linestyle="none", markersize=5, label="Censored"),
         ]
     )
-    fig.legend(
-        handles=sensor_handles,
-        loc="lower center",
-        bbox_to_anchor=(0.5, -0.045),
-        ncol=4,
-        frameon=False,
-        fontsize=8.5,
-    )
+    fig.legend(handles=sensor_handles, loc="lower center", bbox_to_anchor=(0.5, -0.045), ncol=4, frameon=False, fontsize=8.5)
     fig.savefig(EXAMPLE_FIGURE_PATH, dpi=180, facecolor="white", bbox_inches="tight")
     plt.close(fig)
 
 
-def _plot_test_reconstructions(
-    modeling: pd.DataFrame,
-    predictions: pd.DataFrame,
-) -> pd.DataFrame:
+def _plot_test_reconstructions(modeling, predictions):
     """
     Compare reference and ML-driven fields for all true-positive test cases.
 
@@ -568,31 +383,21 @@ def _plot_test_reconstructions(
     public model contract intentionally withholds a single decay-rate estimate.
 
     """
-    source_columns = [
-        "scenario_id",
-        "feature_source_concentration_mg_L",
-        "feature_source_start_s",
-        "feature_source_duration_s",
-    ]
-    cases = predictions.loc[
-        (predictions["actual_decay_resolvable"] == 1)
-        & (predictions["predicted_decay_resolvable"] == 1)
-    ].merge(modeling[source_columns], on="scenario_id", validate="one_to_one")
-    cases = cases.sort_values("scenario_id").reset_index(drop=True)
+    source_columns = ["scenario_id", "feature_source_concentration_mg_L", "feature_source_start_s", "feature_source_duration_s"]
+    cases          = predictions.loc[(predictions["actual_decay_resolvable"] == 1) & (predictions["predicted_decay_resolvable"] == 1)].merge(modeling[source_columns], on="scenario_id", validate="one_to_one")
+    cases          = cases.sort_values("scenario_id").reset_index(drop=True)
     if len(cases) != 4:
-        raise ValueError(
-            "The locked release must contain four resolvable true positives"
-        )
+        raise ValueError("The locked release must contain four resolvable true positives")
     if cases["reported_decay_rate_s_1"].isna().any():
         raise ValueError("A true-positive test case has no reported decay rate")
 
-    reconstructions: list[tuple[pd.Series, np.ndarray, np.ndarray, np.ndarray]] = []
-    metric_rows: list[dict[str, object]] = []
+    reconstructions = []
+    metric_rows     = []
     for _, case in cases.iterrows():
         source_concentration = float(case["feature_source_concentration_mg_L"])
-        source_start = float(case["feature_source_start_s"])
-        source_duration = float(case["feature_source_duration_s"])
-        reference = (
+        source_start         = float(case["feature_source_start_s"])
+        source_duration      = float(case["feature_source_duration_s"])
+        reference            = (
             _pulse_field(
                 FIELD_POSITIONS_M,
                 FIELD_TIMES_S,
@@ -625,15 +430,9 @@ def _plot_test_reconstructions(
                 "scenario_id": case["scenario_id"],
                 "diagnostic_regime": case["diagnostic_regime"],
                 "actual_effective_velocity_m_s": case["actual_effective_velocity_m_s"],
-                "predicted_effective_velocity_m_s": case[
-                    "predicted_effective_velocity_m_s"
-                ],
-                "actual_effective_dispersion_m2_s": case[
-                    "actual_effective_dispersion_m2_s"
-                ],
-                "predicted_effective_dispersion_m2_s": case[
-                    "predicted_effective_dispersion_m2_s"
-                ],
+                "predicted_effective_velocity_m_s": case["predicted_effective_velocity_m_s"],
+                "actual_effective_dispersion_m2_s": case["actual_effective_dispersion_m2_s"],
+                "predicted_effective_dispersion_m2_s": case["predicted_effective_dispersion_m2_s"],
                 "actual_decay_rate_s_1": case["actual_decay_rate_s_1"],
                 "reported_decay_rate_s_1": case["reported_decay_rate_s_1"],
                 "field_rmse_normalized": float(np.sqrt(np.mean(error**2))),
@@ -646,50 +445,16 @@ def _plot_test_reconstructions(
 
     error_limit = max(float(error.max()) for _, _, _, error in reconstructions)
     error_limit = max(error_limit, 0.01)
-    fig, axes = plt.subplots(
-        len(reconstructions),
-        3,
-        figsize=(14.2, 12.8),
-        layout="constrained",
-        sharex=True,
-        sharey=True,
-        squeeze=False,
-    )
-    fig.suptitle(
-        "ML-driven reconstruction of resolvable locked-test simulations",
-        fontsize=15,
-        fontweight="bold",
-    )
+    fig, axes = plt.subplots(len(reconstructions), 3, figsize=(14.2, 12.8), layout="constrained", sharex=True, sharey=True, squeeze=False)
+    fig.suptitle("ML-driven reconstruction of resolvable locked-test simulations", fontsize=15, fontweight="bold")
     concentration_image = None
-    error_image = None
-    for row_index, (case, reference, reconstructed, error) in enumerate(
-        reconstructions
-    ):
-        for column_index, (field, cmap, upper) in enumerate(
-            (
-                (reference, "cividis", 1.0),
-                (reconstructed, "cividis", 1.0),
-                (error, "magma", error_limit),
-            )
-        ):
-            axis = axes[row_index, column_index]
-            image = axis.pcolormesh(
-                FIELD_POSITIONS_M,
-                FIELD_TIMES_S / 3600.0,
-                field,
-                shading="auto",
-                cmap=cmap,
-                vmin=0.0,
-                vmax=upper,
-            )
+    error_image         = None
+    for row_index, (case, reference, reconstructed, error) in enumerate(reconstructions):
+        for column_index, (field, cmap, upper) in enumerate(((reference, "cividis", 1.0), (reconstructed, "cividis", 1.0), (error, "magma", error_limit))):
+            axis  = axes[row_index, column_index]
+            image = axis.pcolormesh(FIELD_POSITIONS_M, FIELD_TIMES_S / 3600.0, field, shading="auto", cmap=cmap, vmin=0.0, vmax=upper)
             for sensor_position in SENSOR_POSITIONS_M:
-                axis.axvline(
-                    sensor_position,
-                    color="white",
-                    linewidth=0.45,
-                    linestyle=":",
-                    alpha=0.6,
-                )
+                axis.axvline(sensor_position, color="white", linewidth=0.45, linestyle=":", alpha=0.6)
             if column_index < 2:
                 concentration_image = image
             else:
@@ -745,31 +510,14 @@ def _plot_test_reconstructions(
     axes[0, 2].set_title("Absolute field error", fontsize=11, fontweight="bold")
     if concentration_image is None or error_image is None:
         raise RuntimeError("No locked-test reconstruction was plotted")
-    fig.colorbar(
-        concentration_image,
-        ax=axes[:, :2],
-        label="Normalized concentration, C/C0",
-        shrink=0.86,
-        pad=0.012,
-    )
-    fig.colorbar(
-        error_image,
-        ax=axes[:, 2],
-        label="Absolute normalized error",
-        shrink=0.86,
-        pad=0.012,
-    )
-    fig.savefig(
-        RECONSTRUCTION_FIGURE_PATH,
-        dpi=180,
-        facecolor="white",
-        bbox_inches="tight",
-    )
+    fig.colorbar(concentration_image, ax=axes[:, :2], label="Normalized concentration, C/C0", shrink=0.86, pad=0.012)
+    fig.colorbar(error_image, ax=axes[:, 2], label="Absolute normalized error", shrink=0.86, pad=0.012)
+    fig.savefig(RECONSTRUCTION_FIGURE_PATH, dpi=180, facecolor="white", bbox_inches="tight")
     plt.close(fig)
     return pd.DataFrame(metric_rows)
 
 
-def main() -> None:
+def main():
     """
     Generate benchmark and ML-driven simulation visualizations.
 
@@ -784,22 +532,14 @@ def main() -> None:
         modeling, sources, observations, predictions = _load_inputs()
         _plot_simulation_examples(modeling, sources, observations)
         metrics = _plot_test_reconstructions(modeling, predictions)
-        metrics.to_csv(
-            RECONSTRUCTION_METRICS_PATH,
-            index=False,
-            float_format="%.12g",
-        )
+        metrics.to_csv(RECONSTRUCTION_METRICS_PATH, index=False, float_format="%.12g")
         print(
             json.dumps(
                 {
                     "example_figure": str(EXAMPLE_FIGURE_PATH.relative_to(ROOT)),
                     "example_scenarios": 3,
-                    "reconstruction_figure": str(
-                        RECONSTRUCTION_FIGURE_PATH.relative_to(ROOT)
-                    ),
-                    "reconstruction_metrics": str(
-                        RECONSTRUCTION_METRICS_PATH.relative_to(ROOT)
-                    ),
+                    "reconstruction_figure": str(RECONSTRUCTION_FIGURE_PATH.relative_to(ROOT)),
+                    "reconstruction_metrics": str(RECONSTRUCTION_METRICS_PATH.relative_to(ROOT)),
                     "reconstructed_test_scenarios": int(len(metrics)),
                     "status": "ok",
                 },

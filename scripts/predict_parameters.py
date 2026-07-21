@@ -42,8 +42,6 @@ Revision History
 ================================================================================
 """
 
-from __future__ import annotations
-
 # Standard library
 import argparse
 import hashlib
@@ -51,20 +49,19 @@ import json
 import warnings
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Any, Iterable
 
 # Third-party libraries
 import joblib
 import numpy as np
 import pandas as pd
 
-ROOT = Path(__file__).resolve().parents[1]
-DEFAULT_MODEL = ROOT / "models/adr1d_parameter_models.joblib"
+ROOT             = Path(__file__).resolve().parents[1]
+DEFAULT_MODEL    = ROOT / "models/adr1d_parameter_models.joblib"
 DEFAULT_MANIFEST = ROOT / "models/model_manifest.json"
 
 
 @contextmanager
-def _guarded_linear_algebra() -> Iterable[None]:
+def _guarded_linear_algebra():
     """
     Suppress expected matrix warnings during model prediction.
 
@@ -76,16 +73,12 @@ def _guarded_linear_algebra() -> Iterable[None]:
 
     """
     with warnings.catch_warnings():
-        warnings.filterwarnings(
-            "ignore",
-            message=".*encountered in matmul",
-            category=RuntimeWarning,
-        )
+        warnings.filterwarnings("ignore", message=".*encountered in matmul", category=RuntimeWarning)
         with np.errstate(divide="ignore", over="ignore", invalid="ignore"):
             yield
 
 
-def _require_finite(values: np.ndarray, label: str) -> None:
+def _require_finite(values, label):
     """
     Require every numeric result to be finite.
 
@@ -106,7 +99,7 @@ def _require_finite(values: np.ndarray, label: str) -> None:
         raise FloatingPointError(f"Non-finite values found in {label}")
 
 
-def _sha256(path: Path) -> str:
+def _sha256(path):
     """
     Compute the SHA-256 digest of a file without loading it entirely in memory.
 
@@ -128,7 +121,7 @@ def _sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
-def _parse_args() -> argparse.Namespace:
+def _parse_args():
     """
     Parse command-line inference options.
 
@@ -138,29 +131,17 @@ def _parse_args() -> argparse.Namespace:
         Input, output, model, manifest, split, and optional row-limit values.
 
     """
-    parser = argparse.ArgumentParser(
-        description=(
-            "Infer identifiable ADR1D transport parameters from a compatible "
-            "feature table."
-        )
-    )
+    parser = argparse.ArgumentParser(description="Infer identifiable ADR1D transport parameters from a compatible feature table.")
     parser.add_argument("--input-csv", required=True, type=Path)
     parser.add_argument("--output-csv", required=True, type=Path)
     parser.add_argument("--model", type=Path, default=DEFAULT_MODEL)
     parser.add_argument("--manifest", type=Path, default=DEFAULT_MANIFEST)
-    parser.add_argument(
-        "--split",
-        choices=("train", "validation", "test"),
-        help="Optionally select rows when the input contains a split column.",
-    )
+    parser.add_argument("--split", choices=("train", "validation", "test"), help="Optionally select rows when the input contains a split column.")
     parser.add_argument("--limit", type=int, help="Optionally keep the first N rows.")
     return parser.parse_args()
 
 
-def load_verified_bundle(
-    model_path: Path = DEFAULT_MODEL,
-    manifest_path: Path = DEFAULT_MANIFEST,
-) -> tuple[dict[str, Any], dict[str, Any]]:
+def load_verified_bundle(model_path=DEFAULT_MODEL, manifest_path=DEFAULT_MANIFEST):
     """
     Verify and load the trusted model bundle and its manifest.
 
@@ -198,10 +179,7 @@ def load_verified_bundle(
     return bundle, manifest
 
 
-def predict_feature_table(
-    table: pd.DataFrame,
-    bundle: dict[str, Any],
-) -> pd.DataFrame:
+def predict_feature_table(table, bundle):
     """
     Predict identifiable transport parameters from an in-memory feature table.
 
@@ -236,46 +214,24 @@ def predict_feature_table(
     if table.empty:
         raise ValueError("The feature table is empty")
 
-    columns = bundle["feature_columns"]
+    columns  = bundle["feature_columns"]
     required = sorted({name for group in columns.values() for name in group})
-    missing = [name for name in required if name not in table]
+    missing  = [name for name in required if name not in table]
     if missing:
         raise ValueError(f"Missing {len(missing)} required feature columns")
 
     # Evaluate all four pipelines under the locked feature contracts.
     models = bundle["models"]
     with _guarded_linear_algebra():
-        velocity = np.power(
-            10.0,
-            models["effective_velocity"].predict(
-                table[columns["effective_parameters"]]
-            ),
-        )
-        dispersion = np.power(
-            10.0,
-            models["effective_dispersion"].predict(
-                table[columns["effective_parameters"]]
-            ),
-        )
-        probabilities = models["decay_resolvability"].predict_proba(
-            table[columns["decay_resolvability"]]
-        )
-        decay_rate = np.power(
-            10.0,
-            models["decay_rate_resolvable"].predict(
-                table[columns["decay_rate_resolvable"]]
-            ),
-        )
+        velocity      = np.power(10.0, models["effective_velocity"].predict(table[columns["effective_parameters"]]))
+        dispersion    = np.power(10.0, models["effective_dispersion"].predict(table[columns["effective_parameters"]]))
+        probabilities = models["decay_resolvability"].predict_proba(table[columns["decay_resolvability"]])
+        decay_rate    = np.power(10.0, models["decay_rate_resolvable"].predict(table[columns["decay_rate_resolvable"]]))
     positive_index = int(np.where(models["decay_resolvability"].classes_ == 1)[0][0])
-    probability = probabilities[:, positive_index]
-    threshold = float(bundle["decision_threshold"])
-    resolvable = (probability >= threshold).astype(int)
-    for label, values in {
-        "effective velocity": velocity,
-        "effective dispersion": dispersion,
-        "decay probability": probability,
-        "decay rate": decay_rate,
-    }.items():
+    probability    = probabilities[:, positive_index]
+    threshold      = float(bundle["decision_threshold"])
+    resolvable     = (probability >= threshold).astype(int)
+    for label, values in {"effective velocity": velocity, "effective dispersion": dispersion, "decay probability": probability, "decay rate": decay_rate}.items():
         _require_finite(values, label)
 
     # Preserve the operational distinction between unresolved and zero decay.
@@ -286,21 +242,13 @@ def predict_feature_table(
     output["effective_dispersion_m2_s"] = dispersion
     output["decay_resolvable_probability"] = probability
     output["decay_resolvable"] = resolvable
-    output["decay_status"] = np.where(
-        resolvable == 1,
-        "resolvable",
-        "below_sensor_resolution",
-    )
+    output["decay_status"] = np.where(resolvable == 1, "resolvable", "below_sensor_resolution")
     output["decay_rate_if_resolvable_s_1"] = decay_rate
-    output["reported_decay_rate_s_1"] = np.where(
-        resolvable == 1,
-        decay_rate,
-        np.nan,
-    )
+    output["reported_decay_rate_s_1"] = np.where(resolvable == 1, decay_rate, np.nan)
     return output
 
 
-def main() -> None:
+def main():
     """
     Run verified ADR1D-ML inference from a CSV feature table.
 

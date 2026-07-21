@@ -42,8 +42,6 @@ Revision History
 ================================================================================
 """
 
-from __future__ import annotations
-
 # Standard library
 import hashlib
 import json
@@ -51,7 +49,6 @@ import math
 import warnings
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Any, Iterable
 
 # Third-party libraries
 import joblib
@@ -77,27 +74,25 @@ from sklearn.metrics import (
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
 
-ROOT = Path(__file__).resolve().parents[1]
-RESULTS = ROOT / "results"
-MODELS = ROOT / "models"
-DATA = ROOT / "data"
-BASE_TABLE_PATH = DATA / "adr1d_modeling_table.csv"
-DECAY_TABLE_PATH = DATA / "adr1d_decay_detectability_table.csv"
+ROOT                  = Path(__file__).resolve().parents[1]
+RESULTS               = ROOT / "results"
+MODELS                = ROOT / "models"
+DATA                  = ROOT / "data"
+BASE_TABLE_PATH       = DATA / "adr1d_modeling_table.csv"
+DECAY_TABLE_PATH      = DATA / "adr1d_decay_detectability_table.csv"
 BASELINE_SUMMARY_PATH = RESULTS / "baseline_validation_summary.json"
-DECAY_SUMMARY_PATH = RESULTS / "decay_detectability_validation_summary.json"
-PROTOCOL_PATH = RESULTS / "final_model_protocol.json"
-PREDICTIONS_PATH = RESULTS / "final_test_predictions.csv"
-METRICS_PATH = RESULTS / "final_test_metrics.json"
-MODEL_PATH = MODELS / "adr1d_parameter_models.joblib"
-MANIFEST_PATH = MODELS / "model_manifest.json"
+DECAY_SUMMARY_PATH    = RESULTS / "decay_detectability_validation_summary.json"
+PROTOCOL_PATH         = RESULTS / "final_model_protocol.json"
+PREDICTIONS_PATH      = RESULTS / "final_test_predictions.csv"
+METRICS_PATH          = RESULTS / "final_test_metrics.json"
+MODEL_PATH            = MODELS / "adr1d_parameter_models.joblib"
+MANIFEST_PATH         = MODELS / "model_manifest.json"
 
-EXPECTED_PROTOCOL_SHA256 = (
-    "56555a235dd6610a5bd3d6376cbe1123490fc50d28b6a0a0c0e8a0c342fdc2d3"
-)
+EXPECTED_PROTOCOL_SHA256 = "56555a235dd6610a5bd3d6376cbe1123490fc50d28b6a0a0c0e8a0c342fdc2d3"
 
 
 @contextmanager
-def _guarded_linear_algebra() -> Iterable[None]:
+def _guarded_linear_algebra():
     """
     Suppress expected matrix warnings during fitting and prediction.
 
@@ -109,16 +104,12 @@ def _guarded_linear_algebra() -> Iterable[None]:
 
     """
     with warnings.catch_warnings():
-        warnings.filterwarnings(
-            "ignore",
-            message=".*encountered in matmul",
-            category=RuntimeWarning,
-        )
+        warnings.filterwarnings("ignore", message=".*encountered in matmul", category=RuntimeWarning)
         with np.errstate(divide="ignore", over="ignore", invalid="ignore"):
             yield
 
 
-def _require_finite(values: np.ndarray, label: str) -> None:
+def _require_finite(values, label):
     """
     Require every value in a numeric array to be finite.
 
@@ -139,7 +130,7 @@ def _require_finite(values: np.ndarray, label: str) -> None:
         raise FloatingPointError(f"Non-finite values found in {label}")
 
 
-def _validate_fitted_estimator(estimator: object, label: str) -> None:
+def _validate_fitted_estimator(estimator, label):
     """
     Check finite learned parameters on a fitted estimator or pipeline.
 
@@ -159,18 +150,10 @@ def _validate_fitted_estimator(estimator: object, label: str) -> None:
     model = estimator.steps[-1][1] if isinstance(estimator, Pipeline) else estimator
     for attribute in ("coef_", "intercept_", "feature_importances_"):
         if hasattr(model, attribute):
-            _require_finite(
-                np.asarray(getattr(model, attribute)),
-                label + " " + attribute,
-            )
+            _require_finite(np.asarray(getattr(model, attribute)), label + " " + attribute)
 
 
-def _regression_metrics(
-    actual_log: np.ndarray,
-    predicted_log: np.ndarray,
-    actual_physical: np.ndarray,
-    predicted_physical: np.ndarray,
-) -> dict[str, float]:
+def _regression_metrics(actual_log, predicted_log, actual_physical, predicted_physical):
     """
     Compute locked regression metrics in logarithmic and physical scales.
 
@@ -192,16 +175,12 @@ def _regression_metrics(
         absolute percentage errors.
 
     """
-    absolute_percentage = np.abs(predicted_physical - actual_physical) / np.abs(
-        actual_physical
-    )
+    absolute_percentage = np.abs(predicted_physical - actual_physical) / np.abs(actual_physical)
     return {
         "rmse_log10": float(math.sqrt(mean_squared_error(actual_log, predicted_log))),
         "mae_log10": float(mean_absolute_error(actual_log, predicted_log)),
         "r2_log10": float(r2_score(actual_log, predicted_log)),
-        "rmse_physical": float(
-            math.sqrt(mean_squared_error(actual_physical, predicted_physical))
-        ),
+        "rmse_physical": float(math.sqrt(mean_squared_error(actual_physical, predicted_physical))),
         "mae_physical": float(mean_absolute_error(actual_physical, predicted_physical)),
         "r2_physical": float(r2_score(actual_physical, predicted_physical)),
         "mean_absolute_percentage_error": float(absolute_percentage.mean()),
@@ -209,7 +188,7 @@ def _regression_metrics(
     }
 
 
-def _sha256(path: Path) -> str:
+def _sha256(path):
     """
     Compute the SHA-256 digest of a file in bounded-memory blocks.
 
@@ -231,7 +210,7 @@ def _sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
-def _verify_protocol(protocol: dict[str, Any]) -> None:
+def _verify_protocol(protocol):
     """
     Verify the locked protocol and all model-development inputs.
 
@@ -256,12 +235,12 @@ def _verify_protocol(protocol: dict[str, Any]) -> None:
     }
     for name, path in paths.items():
         expected = protocol["input_artifacts"][name]
-        actual = _sha256(path)
+        actual   = _sha256(path)
         if actual != expected:
             raise RuntimeError(f"Locked input changed: {name}")
 
 
-def _tree_regression_pipeline(parameters: dict[str, Any]) -> Pipeline:
+def _tree_regression_pipeline(parameters):
     """
     Construct a median-imputed Extra Trees regression pipeline.
 
@@ -276,15 +255,10 @@ def _tree_regression_pipeline(parameters: dict[str, Any]) -> Pipeline:
         Unfitted imputation and tree-regression pipeline.
 
     """
-    return Pipeline(
-        [
-            ("imputer", SimpleImputer(strategy="median")),
-            ("model", ExtraTreesRegressor(**parameters)),
-        ]
-    )
+    return Pipeline([("imputer", SimpleImputer(strategy="median")), ("model", ExtraTreesRegressor(**parameters))])
 
 
-def _classifier_pipeline(parameters: dict[str, Any]) -> Pipeline:
+def _classifier_pipeline(parameters):
     """
     Construct the decay-resolvability classification pipeline.
 
@@ -299,18 +273,10 @@ def _classifier_pipeline(parameters: dict[str, Any]) -> Pipeline:
         Unfitted median-imputation, standardization, and logistic pipeline.
 
     """
-    return Pipeline(
-        [
-            ("imputer", SimpleImputer(strategy="median")),
-            ("scaler", StandardScaler()),
-            ("model", LogisticRegression(**parameters)),
-        ]
-    )
+    return Pipeline([("imputer", SimpleImputer(strategy="median")), ("scaler", StandardScaler()), ("model", LogisticRegression(**parameters))])
 
 
-def _by_regime_metrics(
-    predictions: pd.DataFrame,
-) -> dict[str, dict[str, float]]:
+def _by_regime_metrics(predictions):
     """
     Summarize effective-parameter errors by ADR1D physical regime.
 
@@ -325,33 +291,19 @@ def _by_regime_metrics(
         Test-row counts and median absolute percentage errors for each regime.
 
     """
-    result: dict[str, dict[str, float]] = {}
+    result = {}
     for regime, frame in predictions.groupby("diagnostic_regime"):
-        velocity_ape = (
-            np.abs(
-                frame["predicted_effective_velocity_m_s"]
-                - frame["actual_effective_velocity_m_s"]
-            )
-            / frame["actual_effective_velocity_m_s"]
-        )
-        dispersion_ape = (
-            np.abs(
-                frame["predicted_effective_dispersion_m2_s"]
-                - frame["actual_effective_dispersion_m2_s"]
-            )
-            / frame["actual_effective_dispersion_m2_s"]
-        )
+        velocity_ape   = np.abs(frame["predicted_effective_velocity_m_s"] - frame["actual_effective_velocity_m_s"]) / frame["actual_effective_velocity_m_s"]
+        dispersion_ape = np.abs(frame["predicted_effective_dispersion_m2_s"] - frame["actual_effective_dispersion_m2_s"]) / frame["actual_effective_dispersion_m2_s"]
         result[str(regime)] = {
             "rows": int(len(frame)),
             "velocity_median_absolute_percentage_error": float(np.median(velocity_ape)),
-            "dispersion_median_absolute_percentage_error": float(
-                np.median(dispersion_ape)
-            ),
+            "dispersion_median_absolute_percentage_error": float(np.median(dispersion_ape)),
         }
     return result
 
 
-def main() -> None:
+def main():
     """
     Reconstruct, evaluate, and serialize the locked ADR1D-ML release.
 
@@ -377,190 +329,103 @@ def main() -> None:
     # Verify immutable development decisions before fitting any estimator.
     protocol = json.loads(PROTOCOL_PATH.read_text(encoding="utf-8"))
     _verify_protocol(protocol)
-    base = pd.read_csv(BASE_TABLE_PATH)
+    base  = pd.read_csv(BASE_TABLE_PATH)
     decay = pd.read_csv(DECAY_TABLE_PATH)
 
     # Enforce scenario alignment and the locked development/test partition.
     if not base[["scenario_id", "split"]].equals(decay[["scenario_id", "split"]]):
         raise RuntimeError("Base and decay tables are not aligned")
     development_mask = base["split"].isin(protocol["development_splits"])
-    test_mask = base["split"].eq(protocol["test_split"])
+    test_mask        = base["split"].eq(protocol["test_split"])
     if int(development_mask.sum()) != 255 or int(test_mask.sum()) != 45:
         raise RuntimeError("Unexpected development or test row count")
 
-    base_features = [name for name in base if name.startswith("feature_")]
-    decay_features = [name for name in decay if name.startswith("feature_")]
+    base_features    = [name for name in base if name.startswith("feature_")]
+    decay_features   = [name for name in decay if name.startswith("feature_")]
     compact_features = protocol["models"]["decay_rate_resolvable"]["feature_columns"]
     if len(base_features) != 69 or len(decay_features) != 86:
         raise RuntimeError("Locked feature counts do not match")
 
     # Reconstruct the four pipelines from protocol parameters only.
-    velocity_model = _tree_regression_pipeline(
-        protocol["models"]["effective_velocity"]["parameters"]
-    )
-    dispersion_model = _tree_regression_pipeline(
-        protocol["models"]["effective_dispersion"]["parameters"]
-    )
-    decay_classifier = _classifier_pipeline(
-        protocol["models"]["decay_resolvability"]["parameters"]
-    )
-    decay_regressor = _tree_regression_pipeline(
-        protocol["models"]["decay_rate_resolvable"]["parameters"]
-    )
+    velocity_model   = _tree_regression_pipeline(protocol["models"]["effective_velocity"]["parameters"])
+    dispersion_model = _tree_regression_pipeline(protocol["models"]["effective_dispersion"]["parameters"])
+    decay_classifier = _classifier_pipeline(protocol["models"]["decay_resolvability"]["parameters"])
+    decay_regressor  = _tree_regression_pipeline(protocol["models"]["decay_rate_resolvable"]["parameters"])
 
-    development_base = base.loc[development_mask]
-    test_base = base.loc[test_mask]
-    development_decay = decay.loc[development_mask]
-    test_decay = decay.loc[test_mask]
-    resolvable_development = development_decay.loc[
-        development_decay["target_decay_resolvable"] == 1
-    ]
+    development_base       = base.loc[development_mask]
+    test_base              = base.loc[test_mask]
+    development_decay      = decay.loc[development_mask]
+    test_decay             = decay.loc[test_mask]
+    resolvable_development = development_decay.loc[development_decay["target_decay_resolvable"] == 1]
 
     # Fit on development scenarios and evaluate the reserved scenarios once.
     with _guarded_linear_algebra():
-        velocity_model.fit(
-            development_base[base_features],
-            development_base["target_log10_effective_velocity"],
-        )
-        dispersion_model.fit(
-            development_base[base_features],
-            development_base["target_log10_effective_dispersion"],
-        )
-        decay_classifier.fit(
-            development_decay[decay_features],
-            development_decay["target_decay_resolvable"],
-        )
-        decay_regressor.fit(
-            resolvable_development[compact_features],
-            resolvable_development["target_log10_decay_rate_resolvable"],
-        )
+        velocity_model.fit(development_base[base_features], development_base["target_log10_effective_velocity"])
+        dispersion_model.fit(development_base[base_features], development_base["target_log10_effective_dispersion"])
+        decay_classifier.fit(development_decay[decay_features], development_decay["target_decay_resolvable"])
+        decay_regressor.fit(resolvable_development[compact_features], resolvable_development["target_log10_decay_rate_resolvable"])
 
-        predicted_velocity_log = velocity_model.predict(test_base[base_features])
+        predicted_velocity_log   = velocity_model.predict(test_base[base_features])
         predicted_dispersion_log = dispersion_model.predict(test_base[base_features])
-        decay_probabilities = decay_classifier.predict_proba(test_decay[decay_features])
-        predicted_decay_log = decay_regressor.predict(test_decay[compact_features])
+        decay_probabilities      = decay_classifier.predict_proba(test_decay[decay_features])
+        predicted_decay_log      = decay_regressor.predict(test_decay[compact_features])
 
-    for name, estimator in {
-        "effective velocity": velocity_model,
-        "effective dispersion": dispersion_model,
-        "decay resolvability": decay_classifier,
-        "resolvable decay rate": decay_regressor,
-    }.items():
+    for name, estimator in {"effective velocity": velocity_model, "effective dispersion": dispersion_model, "decay resolvability": decay_classifier, "resolvable decay rate": decay_regressor}.items():
         _validate_fitted_estimator(estimator, name)
 
-    predicted_velocity = np.power(10.0, predicted_velocity_log)
-    predicted_dispersion = np.power(10.0, predicted_dispersion_log)
+    predicted_velocity            = np.power(10.0, predicted_velocity_log)
+    predicted_dispersion          = np.power(10.0, predicted_dispersion_log)
     predicted_decay_if_resolvable = np.power(10.0, predicted_decay_log)
-    positive_index = int(np.where(decay_classifier.classes_ == 1)[0][0])
-    decay_probability = decay_probabilities[:, positive_index]
-    decision_threshold = float(
-        protocol["models"]["decay_resolvability"]["decision_threshold"]
-    )
-    predicted_resolvable = (decay_probability >= decision_threshold).astype(int)
+    positive_index                = int(np.where(decay_classifier.classes_ == 1)[0][0])
+    decay_probability             = decay_probabilities[:, positive_index]
+    decision_threshold            = float(protocol["models"]["decay_resolvability"]["decision_threshold"])
+    predicted_resolvable          = (decay_probability >= decision_threshold).astype(int)
 
-    for label, values in {
-        "velocity predictions": predicted_velocity,
-        "dispersion predictions": predicted_dispersion,
-        "decay probabilities": decay_probability,
-        "decay-rate predictions": predicted_decay_if_resolvable,
-    }.items():
+    for label, values in {"velocity predictions": predicted_velocity, "dispersion predictions": predicted_dispersion, "decay probabilities": decay_probability, "decay-rate predictions": predicted_decay_if_resolvable}.items():
         _require_finite(values, label)
 
-    predictions = test_decay[
-        [
-            "scenario_id",
-            "split",
-            "diagnostic_regime",
-            "diagnostic_decay_state",
-            "diagnostic_damkohler_number",
-        ]
-    ].copy()
-    predictions["actual_effective_velocity_m_s"] = test_base[
-        "target_effective_velocity_m_s"
-    ].to_numpy(dtype=float)
+    predictions = test_decay[["scenario_id", "split", "diagnostic_regime", "diagnostic_decay_state", "diagnostic_damkohler_number"]].copy()
+    predictions["actual_effective_velocity_m_s"] = test_base["target_effective_velocity_m_s"].to_numpy(dtype=float)
     predictions["predicted_effective_velocity_m_s"] = predicted_velocity
-    predictions["actual_effective_dispersion_m2_s"] = test_base[
-        "target_effective_dispersion_m2_s"
-    ].to_numpy(dtype=float)
+    predictions["actual_effective_dispersion_m2_s"] = test_base["target_effective_dispersion_m2_s"].to_numpy(dtype=float)
     predictions["predicted_effective_dispersion_m2_s"] = predicted_dispersion
-    predictions["actual_decay_resolvable"] = test_decay[
-        "target_decay_resolvable"
-    ].to_numpy(dtype=int)
+    predictions["actual_decay_resolvable"] = test_decay["target_decay_resolvable"].to_numpy(dtype=int)
     predictions["predicted_decay_resolvable"] = predicted_resolvable
     predictions["predicted_decay_resolvable_probability"] = decay_probability
-    predictions["actual_decay_rate_s_1"] = test_decay["target_decay_rate_s_1"].to_numpy(
-        dtype=float
-    )
-    predictions["predicted_decay_rate_if_resolvable_s_1"] = (
-        predicted_decay_if_resolvable
-    )
-    predictions["reported_decay_rate_s_1"] = np.where(
-        predicted_resolvable == 1,
-        predicted_decay_if_resolvable,
-        np.nan,
-    )
+    predictions["actual_decay_rate_s_1"] = test_decay["target_decay_rate_s_1"].to_numpy(dtype=float)
+    predictions["predicted_decay_rate_if_resolvable_s_1"] = predicted_decay_if_resolvable
+    predictions["reported_decay_rate_s_1"] = np.where(predicted_resolvable == 1, predicted_decay_if_resolvable, np.nan)
     predictions.to_csv(PREDICTIONS_PATH, index=False, float_format="%.12g")
 
     # Compute the unchanged final-test metrics in both numerical scales.
-    velocity_scores = _regression_metrics(
-        test_base["target_log10_effective_velocity"].to_numpy(dtype=float),
-        predicted_velocity_log,
-        test_base["target_effective_velocity_m_s"].to_numpy(dtype=float),
-        predicted_velocity,
-    )
-    dispersion_scores = _regression_metrics(
-        test_base["target_log10_effective_dispersion"].to_numpy(dtype=float),
-        predicted_dispersion_log,
-        test_base["target_effective_dispersion_m2_s"].to_numpy(dtype=float),
-        predicted_dispersion,
-    )
+    velocity_scores   = _regression_metrics(test_base["target_log10_effective_velocity"].to_numpy(dtype=float), predicted_velocity_log, test_base["target_effective_velocity_m_s"].to_numpy(dtype=float), predicted_velocity)
+    dispersion_scores = _regression_metrics(test_base["target_log10_effective_dispersion"].to_numpy(dtype=float), predicted_dispersion_log, test_base["target_effective_dispersion_m2_s"].to_numpy(dtype=float), predicted_dispersion)
 
-    actual_resolvable = predictions["actual_decay_resolvable"].to_numpy(dtype=int)
+    actual_resolvable     = predictions["actual_decay_resolvable"].to_numpy(dtype=int)
     classification_scores = {
         "accuracy": float(accuracy_score(actual_resolvable, predicted_resolvable)),
-        "balanced_accuracy": float(
-            balanced_accuracy_score(actual_resolvable, predicted_resolvable)
-        ),
-        "precision": float(
-            precision_score(actual_resolvable, predicted_resolvable, zero_division=0)
-        ),
-        "recall": float(
-            recall_score(actual_resolvable, predicted_resolvable, zero_division=0)
-        ),
+        "balanced_accuracy": float(balanced_accuracy_score(actual_resolvable, predicted_resolvable)),
+        "precision": float(precision_score(actual_resolvable, predicted_resolvable, zero_division=0)),
+        "recall": float(recall_score(actual_resolvable, predicted_resolvable, zero_division=0)),
         "f1": float(f1_score(actual_resolvable, predicted_resolvable, zero_division=0)),
         "roc_auc": float(roc_auc_score(actual_resolvable, decay_probability)),
         "log_loss": float(log_loss(actual_resolvable, decay_probabilities)),
         "decision_threshold": decision_threshold,
-        "confusion_matrix_tn_fp_fn_tp": confusion_matrix(
-            actual_resolvable, predicted_resolvable
-        )
-        .ravel()
-        .astype(int)
-        .tolist(),
+        "confusion_matrix_tn_fp_fn_tp": confusion_matrix(actual_resolvable, predicted_resolvable).ravel().astype(int).tolist(),
     }
 
-    resolvable_mask = actual_resolvable == 1
-    actual_decay = predictions.loc[resolvable_mask, "actual_decay_rate_s_1"].to_numpy(
-        dtype=float
-    )
-    predicted_decay = predicted_decay_if_resolvable[resolvable_mask]
-    actual_decay_log = np.log10(actual_decay)
+    resolvable_mask                = actual_resolvable == 1
+    actual_decay                   = predictions.loc[resolvable_mask, "actual_decay_rate_s_1"].to_numpy(dtype=float)
+    predicted_decay                = predicted_decay_if_resolvable[resolvable_mask]
+    actual_decay_log               = np.log10(actual_decay)
     predicted_decay_log_resolvable = np.log10(predicted_decay)
-    decay_ape = np.abs(predicted_decay - actual_decay) / actual_decay
-    decay_regression_scores = {
+    decay_ape                      = np.abs(predicted_decay - actual_decay) / actual_decay
+    decay_regression_scores        = {
         "rows": int(resolvable_mask.sum()),
-        "rmse_log10": float(
-            math.sqrt(
-                mean_squared_error(actual_decay_log, predicted_decay_log_resolvable)
-            )
-        ),
-        "mae_log10": float(
-            mean_absolute_error(actual_decay_log, predicted_decay_log_resolvable)
-        ),
+        "rmse_log10": float(math.sqrt(mean_squared_error(actual_decay_log, predicted_decay_log_resolvable))),
+        "mae_log10": float(mean_absolute_error(actual_decay_log, predicted_decay_log_resolvable)),
         "r2_log10": float(r2_score(actual_decay_log, predicted_decay_log_resolvable)),
-        "rmse_physical": float(
-            math.sqrt(mean_squared_error(actual_decay, predicted_decay))
-        ),
+        "rmse_physical": float(math.sqrt(mean_squared_error(actual_decay, predicted_decay))),
         "mae_physical": float(mean_absolute_error(actual_decay, predicted_decay)),
         "median_absolute_percentage_error": float(np.median(decay_ape)),
         "mean_absolute_percentage_error": float(decay_ape.mean()),
@@ -572,30 +437,16 @@ def main() -> None:
         "development_rows": int(development_mask.sum()),
         "development_resolvable_decay_rows": int(len(resolvable_development)),
         "test_rows": int(test_mask.sum()),
-        "test_decay_state_counts": {
-            key: int(value)
-            for key, value in predictions["diagnostic_decay_state"]
-            .value_counts()
-            .to_dict()
-            .items()
-        },
+        "test_decay_state_counts": {key: int(value) for key, value in predictions["diagnostic_decay_state"].value_counts().to_dict().items()},
         "effective_velocity": velocity_scores,
         "effective_dispersion": dispersion_scores,
         "decay_resolvability": classification_scores,
         "decay_rate_conditional_on_resolvable": decay_regression_scores,
         "by_regime": _by_regime_metrics(predictions),
         "post_test_tuning_performed": False,
-        "software": {
-            "joblib": joblib.__version__,
-            "numpy": np.__version__,
-            "pandas": pd.__version__,
-            "scikit_learn": sklearn.__version__,
-        },
+        "software": {"joblib": joblib.__version__, "numpy": np.__version__, "pandas": pd.__version__, "scikit_learn": sklearn.__version__},
     }
-    METRICS_PATH.write_text(
-        json.dumps(metrics, indent=2, sort_keys=True) + "\n",
-        encoding="utf-8",
-    )
+    METRICS_PATH.write_text(json.dumps(metrics, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
     # Persist only standard scikit-learn objects and explicit column contracts.
     bundle = {
@@ -607,11 +458,7 @@ def main() -> None:
             "decay_resolvability": decay_classifier,
             "decay_rate_resolvable": decay_regressor,
         },
-        "feature_columns": {
-            "effective_parameters": base_features,
-            "decay_resolvability": decay_features,
-            "decay_rate_resolvable": compact_features,
-        },
+        "feature_columns": {"effective_parameters": base_features, "decay_resolvability": decay_features, "decay_rate_resolvable": compact_features},
         "decision_threshold": decision_threshold,
         "target_contract": {
             "effective_velocity": "v/R in m/s",
@@ -638,10 +485,7 @@ def main() -> None:
         "test_rows": int(test_mask.sum()),
         "post_test_tuning_performed": False,
     }
-    MANIFEST_PATH.write_text(
-        json.dumps(manifest, indent=2, sort_keys=True) + "\n",
-        encoding="utf-8",
-    )
+    MANIFEST_PATH.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     print(json.dumps(metrics, indent=2, sort_keys=True))
 
 
