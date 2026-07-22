@@ -1,11 +1,23 @@
 cff-version: 1.2.0
-message: "If you use ADR1D-ML, please cite this software release."
+message: "If you use ADR1D-ML, please cite this software release and the ADR1D dataset."
 title: "ADR1D-ML: Identifiable Parameter Inference for One-Dimensional Reactive Transport"
 type: software
 version: 1.0.0
+date-released: 2026-07-20
 repository-code: "https://github.com/gstinoco/ADR1D-ML"
 url: "https://github.com/gstinoco/ADR1D-ML"
 license: MIT
+abstract: >-
+  ADR1D-ML is a reproducible machine-learning software release for inverse
+  estimation of identifiable transport parameters from noisy six-sensor ADR1D
+  concentration histories. Four scikit-learn pipelines estimate effective
+  velocity, effective dispersion, decay resolvability, and a conditional
+  first-order decay rate. The final models were fitted with 255 development
+  scenarios and evaluated once on 45 locked test scenarios without post-test
+  tuning. The package includes the serialized model bundle, training tables,
+  inference and validation scripts, locked metrics, and simulation-space
+  diagnostics. It does not claim separate recovery of velocity, dispersion,
+  and retardation from concentration alone.
 authors:
   - family-names: Tinoco-Guerrero
     given-names: Gerardo
@@ -27,3 +39,15 @@ keywords:
   - advection-dispersion-reaction
   - parameter estimation
   - scientific machine learning
+references:
+  - type: data
+    title: "ADR1D and WQP-NM-Nutrients: A Reproducible Contaminant-Transport Benchmark and Curated Water-Quality Snapshot"
+    authors:
+      - family-names: Tinoco-Guerrero
+        given-names: Gerardo
+      - family-names: Domínguez-Mota
+        given-names: Francisco J.
+      - family-names: Guzmán-Torres
+        given-names: J. Alberto
+    year: 2026
+    doi: "10.5281/zenodo.21499528"

@@ -618,7 +618,8 @@ reproduced the original model, metrics, and predictions byte for byte.
 ## :mag: Data Provenance
 
 The modeling tables derive exclusively from
-[ADR1D version 1.0.0](https://github.com/gstinoco/ADR1D), a public analytical
+[ADR1D version 1.0.0](https://doi.org/10.5281/zenodo.21499528)
+([GitHub source](https://github.com/gstinoco/ADR1D)), a public analytical
 benchmark created by the same research group. ADR1D supplies physical
 parameters, source conditions, analytical fields, noisy virtual sensors, and
 fixed scenario partitions.
@@ -707,9 +708,10 @@ When using the distributed training tables, also cite the upstream ADR1D data
 release:
 
 > Tinoco-Guerrero, G., Domínguez-Mota, F. J., and Guzmán-Torres, J. A.
-> (2026). *ADR1D: A reproducible one-dimensional contaminant-transport
-> benchmark* (Version 1.0.0) [Data set]. Universidad Michoacana de San
-> Nicolás de Hidalgo. https://github.com/gstinoco/ADR1D
+> (2026). *ADR1D and WQP-NM-Nutrients: A Reproducible Contaminant-Transport
+> Benchmark and Curated Water-Quality Snapshot* (Version 1.0.0) [Data set].
+> Universidad Michoacana de San Nicolás de Hidalgo.
+> https://doi.org/10.5281/zenodo.21499528
 
 ### Scientific references
 
