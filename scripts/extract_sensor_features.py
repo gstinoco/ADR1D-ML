@@ -38,7 +38,7 @@ This work received institutional and financial support from:
 
 Revision History
 ----------------
-- Initial release: December 2024.
+- Initial release: January 2025.
 - Last update: July 2026.
 ================================================================================
 """

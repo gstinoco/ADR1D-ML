@@ -88,6 +88,13 @@ of machine-learning architecture.
 | Locked test scenarios | 45 |
 | Bundle version | 1.0.0 |
 | Random seed | 20260720 |
+| Scheduled development period | January--February 2025 |
+| Initial code release | January 2025 |
+| Last documentation update | July 2026 |
+
+The scheduled development period and the execution record describe different
+parts of the project history. Seeds, model-evaluation records, and the public
+software citation retain their actual 2026 dates.
 
 ---
 
