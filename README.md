@@ -59,7 +59,7 @@ The repository distributes:
 - a command-line inference interface that does not require target labels;
 - the locked training protocol and final evaluation artifacts;
 - the two compact modeling tables needed to reproduce training;
-- exact dependency versions, file digests, licenses, and technical notes.
+- exact dependency versions, integrity metadata, licenses, and technical notes.
 
 ### :wrench: What the model estimates
 
@@ -215,8 +215,8 @@ bundle, manifest = load_verified_bundle()
 parameters = predict_feature_table(features, bundle)
 ```
 
-`parameters` can be passed directly to a numerical workflow. The loader
-verifies the model digest before deserialization.
+`parameters` can be passed directly to a numerical workflow. The loader checks
+the model against its manifest before deserialization.
 
 ### Start from sensor observations
 
@@ -421,17 +421,15 @@ scenario appears in more than one partition.
 
 1. Candidate development used the 210 training scenarios.
 2. Configuration checks used the 45 validation scenarios.
-3. The final protocol was serialized and hashed before opening the test split.
+3. The final protocol was serialized and locked before opening the test split.
 4. Locked pipelines were fitted on training plus validation, totaling 255
    development scenarios.
 5. Final metrics were computed once on the 45 test scenarios.
 6. No feature, model, threshold, or hyperparameter was changed after testing.
 
-The locked protocol SHA-256 is:
-
-```text
-56555a235dd6610a5bd3d6376cbe1123490fc50d28b6a0a0c0e8a0c342fdc2d3
-```
+The locked protocol is distributed as `configs/final_model_protocol.json`.
+Its relationship to the trained bundle and evaluation artifacts is recorded in
+`models/model_manifest.json`.
 
 The development process compared simple medians, regularized linear models,
 logistic regression, and Extra Trees baselines. Physics-derived features were
@@ -578,7 +576,7 @@ python scripts/validate_release.py
 
 The validator performs all of the following:
 
-- verifies SHA-256 digests for the model, protocol, metrics, and predictions;
+- checks the model, protocol, metrics, and predictions against the manifest;
 - loads the four pipelines from the trusted bundle;
 - reproduces effective-velocity and effective-dispersion predictions;
 - reproduces decay probabilities, binary decisions, and conditional rates;
@@ -638,18 +636,13 @@ coefficients and boundary conditions.
 
 ## :lock: File Integrity
 
-| Artifact | SHA-256 |
-|---|---|
-| Base modeling table | `dc493a05c70a8eaf3cf960ab6539caccd7ed4554b05d80e16373099291fd9cdf` |
-| Decay detectability table | `9a8e769211b9e9e6b33e4f1f31dc11719cb3192ad909f5d0bc230b791db5623f` |
-| Locked model protocol | `56555a235dd6610a5bd3d6376cbe1123490fc50d28b6a0a0c0e8a0c342fdc2d3` |
-| Serialized model bundle | `6890df1b30f5572611e5fcdc0d80a4f923e3877f93594b642c0d084c3f361cea` |
-| Final test metrics | `43f282e29c6fe4f12954c86dd53a9283651b249bb8a61f9bd4073da93b5ed732` |
-| Final test predictions | `4b23cea1de3c74a34e9769e190a23138fdf0a6def10c53b76273354641c223ff` |
+The machine-readable model manifest records the identity of the locked model,
+protocol, metrics, predictions, and modeling tables. The inference interface
+checks the bundle against that manifest before deserialization, while the
+release validator extends the check to the remaining artifacts. Detailed
+integrity values remain in the manifest instead of being duplicated here.
 
-The machine-readable model manifest contains the same locked-product digests.
-The inference script checks the bundle digest before deserialization. Users
-should never load an untrusted Joblib or pickle artifact.
+Users should never load an untrusted Joblib or pickle artifact.
 
 ---
 
@@ -1079,7 +1072,7 @@ SIIIA MATH.
       <ul>
         <li>Use GitHub Issues for reproducible software or documentation problems.</li>
         <li>Include the operating system, Python version, exact command, and traceback.</li>
-        <li>Report any distributed-file digest that differs from the manifest.</li>
+        <li>Report any artifact-integrity failure produced by the release validator.</li>
       </ul>
       <div align="center">
         <a href="https://github.com/gstinoco/ADR1D-ML/issues"><img alt="Open a GitHub issue" src="https://img.shields.io/badge/Open-GitHub%20Issue-181717?style=for-the-badge&logo=github"></a>
